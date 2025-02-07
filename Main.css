@@ -1,0 +1,137 @@
+.code-area {
+    -fx-font-family: 'Consolas', 'Courier New', monospace;
+    -fx-font-size: 14px;
+}
+
+.light-mode {
+    -fx-background-color: white;
+    -fx-text-fill: black;
+}
+
+.light-mode .header {
+    -fx-fill: #008000;
+}
+
+.light-mode .keyword {
+    -fx-fill: #0000ff;
+    -fx-font-weight: bold;
+}
+
+.light-mode .string {
+    -fx-fill: #a31515;
+}
+
+.light-mode .comment {
+    -fx-fill: #008000;
+    -fx-font-style: italic;
+}
+
+.light-mode .inbuilt-value {
+    -fx-fill: #FF4500;
+    -fx-font-weight: bold;
+}
+
+
+.light-mode .symbol {
+    -fx-fill: #333333;
+}
+
+.light-mode .symbol.hash {
+    -fx-fill: #333333; /* Adjusted color for # symbol */
+}
+
+.light-mode .builtin {
+    -fx-fill: #795e26;
+    -fx-font-style: italic;
+}
+
+.light-mode .variable {
+    -fx-fill: #267f99;
+}
+
+.light-mode .type {
+    -fx-fill: #267f99;
+    -fx-font-weight: bold;
+}
+
+.light-mode .function {
+    -fx-fill: #795e26;
+}
+
+.dark-mode {
+    -fx-background-color: #2e003e;
+        -fx-text-fill: #d4d4d4;
+}
+
+.dark-mode .keyword {
+    -fx-fill: #FFA500;;
+    -fx-font-weight: bold;
+}
+
+.dark-mode .string {
+    -fx-fill: #ce9178;
+}
+
+.dark-mode .comment {
+    -fx-fill: #6a9955;
+    -fx-font-style: italic;
+}
+
+
+.dark-mode .header {
+    -fx-fill: #569cd6;
+}
+.dark-mode .inbuilt-value {
+    -fx-fill: #dcd000;
+    -fx-font-weight: bold;
+}
+
+.dark-mode .symbol {
+    -fx-fill: #d4d4d4;
+}
+
+.dark-mode .builtin {
+    -fx-fill: #dcdcaa;
+    -fx-font-style: italic;
+}
+
+.dark-mode .variable {
+    -fx-fill: #4ec9b0;
+}
+
+.dark-mode .type {
+    -fx-fill: #FFA500;
+    -fx-font-weight: bold;
+}
+
+.dark-mode .function {
+    -fx-fill: #dcdcaa;
+}
+/* Light Mode Styling */
+.light-mode .stl-function {
+    -fx-fill: #dcdcaa;
+    -fx-font-weight: bold;
+}
+
+.light-mode .stl-algorithm {
+    -fx-fill: #008080;
+    -fx-font-weight: bold;
+}
+
+/* Dark Mode Styling */
+.dark-mode .stl-function {
+    -fx-fill: #dcdcaa;
+    -fx-font-weight: bold;
+}
+
+.dark-mode .stl-algorithm {
+    -fx-fill: #1e90ff;
+    -fx-font-weight: bold;
+}
+.light-mode .number {
+    -fx-fill: #FF6347;
+}
+
+.dark-mode .number {
+    -fx-fill: #FF4500;
+}
