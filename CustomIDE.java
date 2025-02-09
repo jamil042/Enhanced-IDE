@@ -1,25 +1,8 @@
 import javafx.application.Application;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javafx.application.Application;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.OutputStreamWriter;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import javafx.application.Platform; // For Platform.runLater()
-import javafx.scene.control.Alert.AlertType;
+import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
@@ -30,33 +13,29 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import org.fxmisc.richtext.LineNumberFactory;
-import javafx.scene.control.TextArea;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.layout.Pane;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Text;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 import java.io.*;
 import java.util.*;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import java.util.Optional;
+import javafx.scene.control.TextArea;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.input.KeyCode;
 
-public class CustomIDE extends Application {
+public class Main extends Application {
 
     private CodeArea codeArea;
-    private TextArea outputArea;
-    private TextArea inputArea;
+    private TextArea consoleArea;
+    private Process runningProcess;
+    private boolean isWaitingForInput = false;
     private ListView<String> fileListView;
     private String currentFileName = "Untitled1";
-    private int currentLineIndex = 0; // Track the current line being visualized
-    private List<String> codeLines = new ArrayList<>(); // Store individual lines of code
-    private Pane visualizationPane; // Pane for visualization
-    private Label currentLineLabel; // Label to display the current line
-    private Map<String, Integer> variables = new HashMap<>(); // Track variables and their values
-    private Map<String, Rectangle> variableBoxes = new HashMap<>(); // Track variable boxes
-    private Map<String, Text> variableTexts = new HashMap<>(); // Track variable text labels
-    private Map<String, Object> variable = new HashMap<>();
+    private Map<String, String> fileContentMap = new HashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
@@ -64,481 +43,76 @@ public class CustomIDE extends Application {
 
         // MenuBar
         MenuBar menuBar = createMenuBar(primaryStage);
+
+        // Code Area
         codeArea = createCodeArea();
-        SplitPane splitPane = createSplitPane();
 
         // File ListView
+        // Create File List View
+        // Create File List View with Small Initial Width
         fileListView = new ListView<>();
-        fileListView.getItems().add(currentFileName); // Add the first default file
-        fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                currentFileName = newVal;
-                codeArea.clear(); // Clear the code area (or load content based on actual implementation)
-            }
-        });
+        fileListView.setPrefWidth(80);  // Set initial small width
+        fileListView.setMinWidth(60);   // Minimum allowed width
+        fileListView.getItems().add(currentFileName); // Add first default file
+        fileContentMap.put(currentFileName, ""); // Initialize with empty content
+        initializeFileListView(); // Initialize listener
 
-        applyLightMode();
+// Left Pane (File List)
         VBox leftPane = new VBox(new Label("Files"), fileListView);
+        leftPane.setPrefWidth(90); // Start small
+        leftPane.setMinWidth(70);  // Minimum size
 
-        // Center SplitPane
+// SplitPane (Code Area and Console Area)
         SplitPane centerSplitPane = createSplitPane();
 
-        // Create a horizontal SplitPane to include the resizable left pane
+// Main SplitPane (Left Pane and Center SplitPane)
         SplitPane mainSplitPane = new SplitPane();
         mainSplitPane.setOrientation(Orientation.HORIZONTAL);
         mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
+        mainSplitPane.setDividerPositions(0.02); // Initially 5% for the left pane
 
-        // Optionally, set the initial divider position (e.g., 20% for the left pane)
-        mainSplitPane.setDividerPositions(0.2);
-
-        // Visualization Workarea
-        VBox visualizationWorkarea = createVisualizationWorkarea();
-        mainSplitPane.getItems().add(visualizationWorkarea);
 
         // Layout Setup
         root.setTop(menuBar);
         root.setCenter(mainSplitPane);
 
-        primaryStage.setMaximized(true);
+        // Scene and Stage Setup
         Scene scene = new Scene(root, 800, 600);
+        primaryStage.setMaximized(true);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Enhanced IDE");
         primaryStage.show();
     }
 
-    private VBox createVisualizationWorkarea() {
-        VBox visualizationBox = new VBox(10);
-        visualizationBox.setPadding(new javafx.geometry.Insets(10));
-
-        // Label to display the current line of code
-        currentLineLabel = new Label("Current Line: ");
-        currentLineLabel.setFont(Font.font(14));
-
-        // Pane for visualization
-        visualizationPane = new Pane();
-        visualizationPane.setPrefSize(600, 400);
-        visualizationPane.setStyle("-fx-background-color: #f0f0f0;");
-
-        // Buttons for navigation
-        Button nextButton = new Button("Next");
-        Button prevButton = new Button("Previous");
-
-        nextButton.setOnAction(e -> visualizeNextLine());
-        prevButton.setOnAction(e -> visualizePreviousLine());
-
-        HBox buttonBox = new HBox(10, prevButton, nextButton);
-
-        // Add components to the visualization box
-        visualizationBox.getChildren().addAll(currentLineLabel, visualizationPane, buttonBox);
-
-        return visualizationBox;
-    }
-
-//    private void visualizeNextLine() {
-//        if (currentLineIndex < codeLines.size() - 1) {
-//            currentLineIndex++;
-//            updateVisualization();
-//        }
-//    }
-//
-//    private void visualizePreviousLine() {
-//        if (currentLineIndex > 0) {
-//            currentLineIndex--;
-//            updateVisualization();
-//        }
-//    }
-//
-//
-//    private void updateVisualization() {
-//        // Update the current line label
-//        currentLineLabel.setText("Current Line: " + codeLines.get(currentLineIndex));
-//
-//        // Highlight the current line in the code area
-//        codeArea.moveTo(currentLineIndex, 0);
-//        codeArea.requestFollowCaret();
-//
-//        // Parse and visualize the current line
-//        String currentLine = codeLines.get(currentLineIndex).trim();
-//
-//        // Example: Handle variable declarations and assignments
-//        if (currentLine.startsWith("int ")) {
-//            // Extract variable name and value
-//            String[] parts = currentLine.split("=");
-//            String varName = parts[0].replace("int", "").trim();
-//            int value = 0;
-//            if (parts.length > 1) {
-//                value = evaluateExpression(parts[1].replace(";", "").trim());
-//            }
-//
-//            // Update variables map
-//            variables.put(varName, value);
-//
-//            // Draw variable box
-//            Rectangle rect = new Rectangle(10, 50 + variables.size() * 40, 100, 30);
-//            rect.setFill(Color.LIGHTBLUE);
-//            rect.setStroke(Color.BLACK);
-//
-//            Text varText = new Text(15, 70 + variables.size() * 40, varName + " = " + value);
-//            varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//
-//            visualizationPane.getChildren().addAll(rect, varText);
-//            variableBoxes.put(varName, rect);
-//            variableTexts.put(varName, varText);
-//        } else if (currentLine.contains("=")) {
-//            // Handle assignments
-//            String[] parts = currentLine.split("=");
-//            String varName = parts[0].trim();
-//            String valueStr = parts[1].replace(";", "").trim();
-//
-//            // Evaluate the value (e.g., handle arithmetic expressions)
-//            int value = evaluateExpression(valueStr);
-//
-//            // Update variable value
-//            variables.put(varName, value);
-//
-//            // Update visualization
-//            if (variableBoxes.containsKey(varName)) {
-//                // Remove old text
-//                Text oldText = variableTexts.get(varName);
-//                visualizationPane.getChildren().remove(oldText);
-//
-//                // Add new text
-//                Text newText = new Text(oldText.getX(), oldText.getY(), varName + " = " + value);
-//                newText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//                visualizationPane.getChildren().add(newText);
-//
-//                // Update variableTexts map
-//                variableTexts.put(varName, newText);
-//            }
-//        } else if (currentLine.startsWith("cout")) {
-//            // Handle cout statements
-//            String output = evaluateCoutStatement(currentLine);
-//            Text outputText = new Text(10, 200, "Output: " + output);
-//            outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//            visualizationPane.getChildren().add(outputText);
-//        }
-//    }
-//
-//    private int evaluateExpression(String expression) {
-//        // Simple evaluation for arithmetic expressions (e.g., "a + b")
-//        String[] tokens = expression.split("[+\\-*/]");
-//        if (tokens.length == 1) {
-//            // If it's a single variable or number
-//            if (variables.containsKey(tokens[0].trim())) {
-//                return variables.get(tokens[0].trim()); // Return variable value
-//            } else {
-//                return Integer.parseInt(tokens[0].trim()); // Return number
-//            }
-//        } else {
-//            // Handle arithmetic expressions
-//            int a = variables.getOrDefault(tokens[0].trim(), 0);
-//            int b = variables.getOrDefault(tokens[1].trim(), 0);
-//            if (expression.contains("+")) {
-//                return a + b;
-//            } else if (expression.contains("-")) {
-//                return a - b;
-//            } else if (expression.contains("*")) {
-//                return a * b;
-//            } else if (expression.contains("/")) {
-//                return a / b;
-//            }
-//        }
-//        return 0;
-//    }
-//
-//    private String evaluateCoutStatement(String coutLine) {
-//        // Extract the expression inside cout
-//        String expression = coutLine.replace("cout", "").replace("<<", "").replace(";", "").trim();
-//        return String.valueOf(evaluateExpression(expression));
-//    }
-//
-//    private void initializeCodeLines() {
-//        String code = codeArea.getText();
-//        codeLines = Arrays.asList(code.split("\n"));
-//        currentLineIndex = 0;
-//        variables.clear(); // Reset variables
-//        variableBoxes.clear(); // Reset variable boxes
-//        variableTexts.clear(); // Reset variable texts
-//        visualizationPane.getChildren().clear(); // Clear visualization pane
-//        updateVisualization();
-//    }
-//
-//    // Add this method to the "Visualize" button action
-//    private void startVisualization() {
-//        initializeCodeLines();
-//    }
-
-
-
-
-
-    // Global variable to hold the script engine (initialize once)
-    private ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
-
-    private void visualizeNextLine() {
-        if (currentLineIndex < codeLines.size() - 1) {
-            currentLineIndex++;
-            updateVisualization();
-        }
-    }
-
-    private void visualizePreviousLine() {
-        if (currentLineIndex > 0) {
-            currentLineIndex--;
-            updateVisualization();
-        }
-    }
-
-    /**
-     * Updated visualization method:
-     * - Skips lines with "main(".
-     * - Splits a line by semicolons so that multiple expressions per line are processed.
-     * - Delegates processing of variable declarations, assignments, and cout statements.
-     */
-    private void updateVisualization() {
-        if (codeLines.isEmpty() || currentLineIndex < 0 || currentLineIndex >= codeLines.size()) {
-            return;
-        }
-
-        String currentLine = codeLines.get(currentLineIndex).trim();
-
-        // Skip processing lines that define functions like main() or that are empty.
-        if (currentLine.isEmpty() || currentLine.contains("main(")) {
-            currentLineLabel.setText("Skipping non-executable line: " + currentLine);
-            return;
-        }
-
-        // Update current line label and move caret in code area.
-        currentLineLabel.setText("Current Line: " + currentLine);
-        codeArea.moveTo(currentLineIndex, 0);
-        codeArea.requestFollowCaret();
-
-        // Process each expression (split by semicolon)
-        String[] expressions = currentLine.split(";");
-        for (String expr : expressions) {
-            expr = expr.trim();
-            if (expr.isEmpty()) continue;
-            if (expr.startsWith("int ") || expr.startsWith("float ") || expr.startsWith("String ")) {
-                processDeclaration(expr);
-            } else if (expr.startsWith("cout")) {
-                processCout(expr);
-            } else if (expr.contains("=")) {
-                processAssignment(expr);
-            }
-            // You could add additional expression handlers here if needed.
-        }
-    }
-
-    /**
-     * Process a declaration such as:
-     *    int a = 5
-     *    float b = 3.14
-     *    String s = "Hello"
-     */
-    private void processDeclaration(String stmt) {
-        // Regex pattern to extract the type, variable name, and (optional) assigned value.
-        Pattern pattern = Pattern.compile("^(int|float|String)\\s+(\\w+)(\\s*=\\s*(.+))?$");
-        Matcher matcher = pattern.matcher(stmt);
-        if (matcher.find()) {
-            String type = matcher.group(1);
-            String varName = matcher.group(2);
-            String valueExpr = matcher.group(4);
-
-            Object value;
-            if (valueExpr == null) {
-                // Use default values if no assignment.
-                if (type.equals("int")) {
-                    value = 0;
-                } else if (type.equals("float")) {
-                    value = 0.0;
-                } else {
-                    value = "";
-                }
-            } else {
-                value = evaluateExpression(valueExpr.trim());
-                // Coerce the evaluated result to the expected type.
-                if (type.equals("int")) {
-                    if (value instanceof Number) {
-                        value = ((Number) value).intValue();
-                    } else {
-                        try {
-                            value = Integer.parseInt(value.toString());
-                        } catch (NumberFormatException ex) {
-                            value = 0;
-                        }
-                    }
-                } else if (type.equals("float")) {
-                    if (value instanceof Number) {
-                        value = ((Number) value).doubleValue();
-                    } else {
-                        try {
-                            value = Double.parseDouble(value.toString());
-                        } catch (NumberFormatException ex) {
-                            value = 0.0;
-                        }
-                    }
-                } else if (type.equals("String")) {
-                    value = value.toString();
-                }
-            }
-            variable.put(varName, value);
-            drawOrUpdateVariable(varName, value);
-        }
-    }
-
-    /**
-     * Process an assignment such as:
-     *    a = 2*a + b/5
-     */
-    private void processAssignment(String stmt) {
-        // Split only at the first "=" to handle expressions that may contain "=" later.
-        int eqIndex = stmt.indexOf("=");
-        if (eqIndex < 0) return;
-        String varName = stmt.substring(0, eqIndex).trim();
-        String valueExpr = stmt.substring(eqIndex + 1).trim();
-
-        Object value = evaluateExpression(valueExpr);
-        // If the variable already exists, try to coerce the value to its type.
-        if (variable.containsKey(varName)) {
-            Object oldVal = variable.get(varName);
-            if (oldVal instanceof Integer) {
-                if (value instanceof Number) {
-                    value = ((Number) value).intValue();
-                } else {
-                    try {
-                        value = Integer.parseInt(value.toString());
-                    } catch (NumberFormatException ex) {
-                        value = 0;
-                    }
-                }
-            } else if (oldVal instanceof Double) {
-                if (value instanceof Number) {
-                    value = ((Number) value).doubleValue();
-                } else {
-                    try {
-                        value = Double.parseDouble(value.toString());
-                    } catch (NumberFormatException ex) {
-                        value = 0.0;
-                    }
-                }
-            } else if (oldVal instanceof String) {
-                value = value.toString();
-            }
-        }
-        variable.put(varName, value);
-        drawOrUpdateVariable(varName, value);
-    }
-
-    /**
-     * Process a cout statement such as:
-     *    cout << a + 5
-     */
-    private void processCout(String stmt) {
-        // Remove "cout" and any "<<" tokens.
-        String outputExpr = stmt.replace("cout", "").replace("<<", "").replace(";", "").trim();
-        Object result = evaluateExpression(outputExpr);
-        Text outputText = new Text(10, 200 + visualizationPane.getChildren().size() * 20, "Output: " + result);
-        outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        visualizationPane.getChildren().add(outputText);
-    }
-
-    /**
-     * Helper method to draw a new variable box or update the text if it already exists.
-     */
-    private void drawOrUpdateVariable(String varName, Object value) {
-        if (variableTexts.containsKey(varName)) {
-            // Update existing text.
-            Text varText = variableTexts.get(varName);
-            varText.setText(varName + " = " + value);
-        } else {
-            // Draw a new box.
-            int yPos = 50 + variableBoxes.size() * 40;
-            Rectangle rect = new Rectangle(10, yPos, 100, 30);
-            rect.setFill(Color.LIGHTBLUE);
-            rect.setStroke(Color.BLACK);
-
-            Text varText = new Text(15, yPos + 20, varName + " = " + value);
-            varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-
-            visualizationPane.getChildren().addAll(rect, varText);
-            variableBoxes.put(varName, rect);
-            variableTexts.put(varName, varText);
-        }
-    }
-
-    /**
-     * Evaluate an arithmetic/string expression using the JavaScript engine.
-     * All current variables are added to the engine's context.
-     */
-    private Object evaluateExpression(String expression) {
-        // Update engine bindings with current variables.
-        for (Map.Entry<String, Object> entry : variable.entrySet()) {
-            engine.put(entry.getKey(), entry.getValue());
-        }
-        try {
-            Object result = engine.eval(expression);
-            return result;
-        } catch (ScriptException e) {
-            showError("Evaluation Error", "Error evaluating expression: " + expression + "\n" + e.getMessage());
-
-            return 0;
-        }
-    }
-
-    /**
-     * Called when starting visualization; splits the code into lines and resets state.
-     */
-    private void initializeCodeLines() {
-        String code = codeArea.getText();
-        codeLines = Arrays.asList(code.split("\n"));
-        currentLineIndex = 0;
-        variables.clear();           // Reset variables
-        variableBoxes.clear();       // Reset variable boxes
-        variableTexts.clear();       // Reset variable text labels
-        visualizationPane.getChildren().clear(); // Clear visualization pane
-        updateVisualization();
-    }
-
-    /**
-     * Called by the Visualize button.
-     */
-    private void startVisualization() {
-        initializeCodeLines();
-    }
-
-
-    // Add a "Visualize" button to the menu or toolbar
     private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
 
+        // File Menu
         Menu fileMenu = new Menu("File");
         MenuItem openFile = new MenuItem("Open");
         MenuItem saveFile = new MenuItem("Save");
         MenuItem newFile = new MenuItem("New");
         MenuItem closeFile = new MenuItem("Close");
-        MenuItem deleteFile = new MenuItem("Delete");
+        fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile);
 
-        fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile, deleteFile);
-
+        // Run Menu
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
-        MenuItem visualizeCode = new MenuItem("Visualize"); // Add Visualize button
-        runMenu.getItems().addAll(runCode, visualizeCode);
+        runMenu.getItems().add(runCode);
 
-        // Add action for the Visualize button
-        visualizeCode.setOnAction(e -> startVisualization());
-
-        // Rest of the menu setup...
+        // Debug Menu
         Menu debugMenu = new Menu("Debug");
         MenuItem debugCode = new MenuItem("Debug");
         debugMenu.getItems().add(debugCode);
 
+        // Tools Menu
         Menu toolsMenu = new Menu("Tools");
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
         MenuItem deleteCode = new MenuItem("Clear Code");
         toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode);
 
+        // Setting Menu
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
         MenuItem lightMode = new MenuItem("Light Mode");
@@ -546,15 +120,20 @@ public class CustomIDE extends Application {
         themeMenu.getItems().addAll(lightMode, darkMode);
         settingMenu.getItems().add(themeMenu);
 
+        // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem aboutApp = new MenuItem("About");
         MenuItem documentation = new MenuItem("Documentation");
         helpMenu.getItems().addAll(documentation, aboutApp);
 
+        // Add Menus to MenuBar
         menuBar.getMenus().addAll(fileMenu, runMenu, debugMenu, toolsMenu, settingMenu, helpMenu);
 
+        // Event Handlers
         openFile.setOnAction(e -> openFile(primaryStage));
-        newFile.setOnAction(e -> saveFile(primaryStage));
+        newFile.setOnAction(e -> newFile(primaryStage));
+        saveFile.setOnAction(e -> saveFile(primaryStage));
+        closeFile.setOnAction(e -> closeFile(primaryStage));
         runCode.setOnAction(e -> runCode());
         debugCode.setOnAction(e -> debugCode());
         deleteCode.setOnAction(e -> deleteCode());
@@ -565,197 +144,375 @@ public class CustomIDE extends Application {
         lightMode.setOnAction(e -> applyLightMode());
         darkMode.setOnAction(e -> applyDarkMode());
 
-
-
-
         return menuBar;
     }
 
-    // Rest of your existing code...
     private CodeArea createCodeArea() {
         CodeArea codeArea = new CodeArea();
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
         codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
-        codeArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 14px;");
+        codeArea.setStyle(
+                "-fx-font-family: 'Consolas', 'Menlo', 'monospace'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-text-fill: #D4D4D4;"
+        );
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
         return codeArea;
     }
 
-    private SplitPane createSplitPane() {
-        // Create output area for displaying results
-        outputArea = new TextArea();
-        outputArea.setEditable(false);
-        outputArea.setStyle("-fx-control-inner-background: black; -fx-text-fill: white;");
-        outputArea.setPrefHeight(150); // You can tweak this based on preference
 
-        // Create input area for user input (e.g., for running programs)
-        inputArea = new TextArea();
-        inputArea.setPromptText("Enter input for your program here...");
-        inputArea.setPrefHeight(100); // This can be adjusted dynamically
+    private TextArea createConsoleArea() {
+        TextArea consoleArea = new TextArea();
+        consoleArea.setEditable(true);
+        consoleArea.setStyle(
+                "-fx-control-inner-background: #1E1E1E; " +
+                        "-fx-text-fill: #D4D4D4; " +
+                        "-fx-font-family: 'Consolas', 'Menlo', 'monospace'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-padding: 5px; " +
+                        "-fx-border-color: #333333; " +
+                        "-fx-border-width: 1px; " +
+                        "-fx-border-radius: 3px;"
+        );
+        consoleArea.setPrefHeight(200);
+
+        // Handle user input (e.g., when Enter is pressed)
+        consoleArea.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                event.consume(); // Prevent adding a newline
+
+                // Only process input if the program is waiting for it
+                if (isWaitingForInput) {
+                    handleConsoleInput(consoleArea);
+                } else {
+                    appendToConsole("\nError: The program is not waiting for input.\n> ");
+                }
+            }
+        });
+
+        return consoleArea;
+    }
+
+    private void handleConsoleInput(TextArea consoleArea) {
+        // Get the last line of text (user input)
+        String text = consoleArea.getText();
+        String[] lines = text.split("\n");
+        String input = lines[lines.length - 1].substring(2); // Remove the "> " prompt
+
+        // Send input to the running program
+        if (isWaitingForInput && runningProcess != null && runningProcess.isAlive()) {
+            sendInputToProgram(input);
+            isWaitingForInput = false; // Reset input state
+        } else {
+            appendToConsole("\nError: The program is not waiting for input.\n> ");
+        }
+    }
+    private boolean isInputRequired() {
+        // Check if the code in the codeArea requires input (e.g., contains "cin")
+        return codeArea.getText().contains("cin");
+    }
+
+    private String getConsoleInput() {
+        // Wait for user input in the console area
+        String input = consoleArea.getText().trim();
+        if (input.startsWith("> ")) {
+            input = input.substring(2); // Remove the prompt
+        }
+        return input.isEmpty() ? null : input; // Return null if no input is provided
+    }
+
+    private void clearConsoleInput() {
+        Platform.runLater(() -> {
+            consoleArea.clear(); // Clear the console input
+        });
+    }
+
+    private void appendToConsole(String text) {
+        Platform.runLater(() -> {
+            consoleArea.appendText(text + "\n");
+            consoleArea.positionCaret(consoleArea.getText().length()); // Scroll to the bottom
+        });
+    }
+
+
+    private void sendInputToProgram(String input) {
+        try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(runningProcess.getOutputStream()))) {
+            processInput.write(input + "\n");
+            processInput.flush();
+        } catch (IOException e) {
+            appendToConsole("\nError sending input to program: " + e.getMessage());
+        }
+    }
+
+    private SplitPane createSplitPane() {
+        // Create the console area (combined input/output)
+        consoleArea = createConsoleArea();
 
         // Create the code area (for coding)
-        codeArea = createCodeArea(); // Initialize the codeArea
+        codeArea = createCodeArea();
 
         // Create the SplitPane
         SplitPane splitPane = new SplitPane();
-        splitPane.setOrientation(Orientation.VERTICAL); // Stack vertically (code on top, input/output on bottom)
+        splitPane.setOrientation(Orientation.VERTICAL); // Stack vertically (code on top, console on bottom)
 
         // Add the areas to the split pane
-        splitPane.getItems().addAll(codeArea, inputArea, outputArea);
+        splitPane.getItems().addAll(codeArea, consoleArea);
 
         // Set divider positions (these can be adjusted to allow resizing)
-        splitPane.setDividerPositions(0.7, 0.85); // Initially, codeArea gets 70%, input/output get 30%
+        splitPane.setDividerPositions(0.7); // Initially, codeArea gets 70%, console gets 30%
 
         return splitPane;
     }
 
-    private String getFileContent(String fileName) {
-        StringBuilder content = new StringBuilder();
-        File file = new File(fileName); // Locate the file
+    private void initializeFileListView() {
+        fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.equals(currentFileName)) {
+                // Save the current file's content to the map
+                fileContentMap.put(currentFileName, codeArea.getText());
 
-        // Ensure the file exists before trying to read it
-        if (!file.exists()) {
-            showError("File Not Found", "The file '" + fileName + "' does not exist.");
-            return ""; // Return empty content if the file doesn't exist
-        }
-
-        // Read the file content
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
+                // Switch to the new file
+                currentFileName = newVal;
+                String content = fileContentMap.getOrDefault(currentFileName, "");
+                codeArea.replaceText(content); // Load the new file's content
             }
-        } catch (IOException e) {
-            showError("Error Reading File", e.getMessage());
-        }
-
-        return content.toString();
+        });
     }
 
-
     private void openFile(Stage stage) {
-        if (codeArea.getText().isEmpty() || !codeArea.getText().equals(getFileContent(currentFileName))) {
-            // Prompt the user to save unsaved changes before opening a new file
-            Alert alert = new Alert(AlertType.CONFIRMATION);
-            alert.setTitle("Unsaved Changes");
-            alert.setHeaderText("You have unsaved changes.");
-            alert.setContentText("Do you want to save them before opening a new file?");
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                saveFile(stage);
-            }
+        // Step 1: Check for unsaved changes
+        if (hasUnsavedChanges()) {
+            promptSaveChanges(stage);
         }
 
-        // Open the file chooser dialog
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
         fileChooser.setTitle("Open File");
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
-            // Update the current file name
             currentFileName = file.getName();
-
-            // Add the opened file to the fileListView if it's not already there
             if (!fileListView.getItems().contains(currentFileName)) {
                 fileListView.getItems().add(currentFileName);
             }
+            fileListView.getSelectionModel().select(currentFileName); // Select the opened file in the list
 
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                codeArea.clear();  // Clear the code area before loading the new file
+                StringBuilder content = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    codeArea.appendText(line + "\n");  // Append file content to the code area
+                    content.append(line).append("\n");
                 }
+                fileContentMap.put(currentFileName, content.toString()); // Store content in the map
+                codeArea.replaceText(content.toString()); // Load content into the code area
             } catch (IOException e) {
                 showError("Error opening file", e.getMessage());
             }
         }
     }
 
-
-
     private void saveFile(Stage stage) {
-        // Initialize the file chooser
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
 
-        // Set file extension filter for C++ files
-        FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("C++ Files", "*.cpp");
-        fileChooser.getExtensionFilters().add(extensionFilter);
-
-        // Show save dialog
         File file = fileChooser.showSaveDialog(stage);
 
         if (file != null) {
-            // If the file doesn't have a .cpp extension, add it
             if (!file.getName().endsWith(".cpp")) {
                 file = new File(file.getAbsolutePath() + ".cpp");
             }
 
-            // Try saving the file
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-                // Write the content of the codeArea to the selected file
-                writer.write(codeArea.getText());
+                String content = codeArea.getText();
+                writer.write(content);
+
+                // Update the file name and content in the map and list
+                String oldFileName = currentFileName;
+                currentFileName = file.getName();
+
+                // Remove the old file name from the list and map
+                fileListView.getItems().remove(oldFileName);
+                fileContentMap.remove(oldFileName);
+
+                // Add the new file name to the list and map
+                fileListView.getItems().add(currentFileName);
+                fileContentMap.put(currentFileName, content);
+
+                // Select the new file name in the list
+                fileListView.getSelectionModel().select(currentFileName);
             } catch (IOException e) {
-                // Display an error dialog in case of failure
                 showError("Error saving file", e.getMessage());
-                e.printStackTrace(); // Log the error for better debugging
             }
         }
     }
 
+    private void newFile(Stage stage) {
+//        if (hasUnsavedChanges()) {
+//            promptSaveChanges(stage);
+//        }
 
+        // Clear the code area for a new file
+        codeArea.clear();
+        currentFileName = "Untitled" + (fileListView.getItems().size() + 1);
+        fileListView.getItems().add(currentFileName);
+        fileContentMap.put(currentFileName, ""); // Initialize with empty content
+        fileListView.getSelectionModel().select(currentFileName); // Select the new file in the list
+    }
+
+    private void closeFile(Stage stage) {
+        // Step 1: Check for unsaved changes
+        if (hasUnsavedChanges()) {
+            promptSaveChanges(stage);
+        }
+
+        // Step 2: Save the current file's content to the map
+        fileContentMap.put(currentFileName, codeArea.getText());
+
+        // Step 3: Get the index of the current file
+        int currentFileIndex = fileListView.getItems().indexOf(currentFileName);
+
+        // Step 4: Remove the current file from the list and map
+        fileListView.getItems().remove(currentFileName);
+        fileContentMap.remove(currentFileName);
+
+        // Step 5: If no files are left, create a new default file
+        if (fileListView.getItems().isEmpty()) {
+            currentFileName = "Untitled1";
+            fileListView.getItems().add(currentFileName);
+            fileContentMap.put(currentFileName, "");
+            codeArea.replaceText(""); // Clear the code area for the new file
+        } else {
+            // Step 6: Determine the previous file
+            int previousFileIndex = Math.max(0, currentFileIndex - 1);
+            currentFileName = fileListView.getItems().get(previousFileIndex);
+
+            // Step 7: Load the previous file's content
+            String previousFileContent = fileContentMap.getOrDefault(currentFileName, "");
+            codeArea.replaceText(previousFileContent);
+        }
+
+        // Step 8: Update the selection in the list view
+        fileListView.getSelectionModel().select(currentFileName);
+    }
+
+    private boolean hasUnsavedChanges() {
+        String savedContent = fileContentMap.get(currentFileName);
+        String currentContent = codeArea.getText();
+        return savedContent == null || !currentContent.equals(savedContent);
+    }
+
+    private void promptSaveChanges(Stage stage) {
+        Alert alert = new Alert(AlertType.CONFIRMATION);
+        alert.setTitle("Unsaved Changes");
+        alert.setHeaderText("You have unsaved changes.");
+        alert.setContentText("Do you want to save them before proceeding?");
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            saveFile(stage); // Save the file if the user confirms
+        }
+    }
 
 
     private void runCode() {
-        try {
-            String code = codeArea.getText();
+        new Thread(() -> {
+            try {
+                String code = codeArea.getText();
 
-            File tempFile = File.createTempFile("CustomIDE", ".cpp");
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
-                writer.write(code);
+                // Check if the code requires input
+                boolean requiresInput = isInputRequired();
+
+                // Create a temporary C++ file
+                File tempFile = File.createTempFile("CustomIDE", ".cpp");
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+                    writer.write(code);
+                }
+
+                // Compile the code
+                ProcessBuilder compileProcess = new ProcessBuilder("g++", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
+                Process compile = compileProcess.start();
+                compile.waitFor();
+
+                // Check if the compilation was successful
+                if (compile.exitValue() == 0) {
+                    // Display compilation success message
+                    appendToConsole("\nCompilation Successful!\n");
+
+                    // Run the compiled program
+                    ProcessBuilder runProcess = new ProcessBuilder(tempFile.getParent() + "/temp");
+                    runProcess.redirectErrorStream(true);
+                    runningProcess = runProcess.start(); // Initialize runningProcess
+
+                    // Thread to handle program output
+                    Thread outputThread = new Thread(() -> {
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(runningProcess.getInputStream()))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                appendToConsole(line); // Display output in the console
+
+                                // Check if the program is waiting for input
+                                if (requiresInput && (line.contains(":") || line.contains(">"))) {
+                                    isWaitingForInput = true;
+                                }
+                            }
+                        } catch (IOException e) {
+                            appendToConsole("\nError reading program output: " + e.getMessage());
+                        }
+                    });
+                    outputThread.start();
+
+                    // Thread to handle program input
+                    Thread inputThread = new Thread(() -> {
+                        try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(runningProcess.getOutputStream()))) {
+                            while (runningProcess != null && runningProcess.isAlive()) { // Check if runningProcess is not null
+                                if (isWaitingForInput) {
+                                    String userInput = getConsoleInput(); // Get input from the console area
+                                    if (userInput != null && !userInput.isEmpty()) {
+                                        processInput.write(userInput + "\n"); // Send input to the program
+                                        processInput.flush(); // Flush the output stream
+                                        isWaitingForInput = false; // Reset input state
+                                        clearConsoleInput(); // Clear the input after sending
+                                    }
+                                }
+                            }
+                        } catch (IOException e) {
+                            appendToConsole("\nError sending input to program: " + e.getMessage());
+                        }
+                    });
+                    inputThread.start();
+
+                    // Wait for the program to finish
+                    runningProcess.waitFor();
+                    outputThread.join();
+                    inputThread.join();
+                } else {
+                    // Display compilation errors
+                    BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
+                    StringBuilder errorMessage = new StringBuilder();
+                    String errorLine;
+                    while ((errorLine = errorReader.readLine()) != null) {
+                        errorMessage.append(errorLine).append("\n");
+                    }
+                    appendToConsole("\nCompilation failed:\n" + errorMessage.toString());
+                }
+
+                // Clean up temporary files
+                tempFile.delete();
+                File tempBinary = new File(tempFile.getParent() + "/temp");
+                if (tempBinary.exists()) {
+                    tempBinary.delete();
+                }
+            } catch (Exception e) {
+                appendToConsole("\nError running code: " + e.getMessage());
+            } finally {
+                // Terminate the running process
+                if (runningProcess != null) {
+                    runningProcess.destroy();
+                }
+                runningProcess = null; // Reset the running process
+                isWaitingForInput = false; // Reset input state
             }
-
-
-            ProcessBuilder compileProcess = new ProcessBuilder("g++", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
-            Process compile = compileProcess.start();
-            compile.waitFor();
-
-            if (compile.exitValue() == 0) {
-                ProcessBuilder runProcess = new ProcessBuilder(tempFile.getParent() + "/temp");
-                runProcess.redirectErrorStream(true);
-
-                Process run = runProcess.start();
-
-
-                try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(run.getOutputStream()))) {
-                    processInput.write(inputArea.getText());
-                    processInput.flush();
-                }
-
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
-                StringBuilder output = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-                outputArea.setText(output.toString());
-            } else {
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
-                StringBuilder errorMessage = new StringBuilder();
-                String line;
-                while ((line = errorReader.readLine()) != null) {
-                    errorMessage.append(line).append("\n");
-                }
-                outputArea.setText("Compilation failed:\n" + errorMessage.toString());
-            }
-
-        } catch (Exception e) {
-            outputArea.setText("Error running code: " + e.getMessage());
-        }
+        }).start();
     }
 
     private void applyLightMode() {
@@ -777,36 +534,34 @@ public class CustomIDE extends Application {
         new Thread(() -> {
             try {
                 String code = codeArea.getText();
-                System.out.println("Code to debug:\n" + code);
 
+                // Create a temporary file to store the code
                 File tempFile = File.createTempFile("CustomIDE", ".cpp");
-                System.out.println("Temporary file path: " + tempFile.getAbsolutePath());
-
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
                     writer.write(code);
                 }
 
+                // Compile the code with debug symbols
                 ProcessBuilder compileProcess = new ProcessBuilder("g++", "-g", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
-                System.out.println("Compilation command: g++ -g " + tempFile.getAbsolutePath() + " -o " + tempFile.getParent() + "/temp");
                 Process compile = compileProcess.start();
                 compile.waitFor();
 
                 if (compile.exitValue() == 0) {
-                    System.out.println("Compilation with debug symbols successful.");
-
+                    // Start the debugger (GDB)
                     ProcessBuilder debugProcess = new ProcessBuilder("gdb", tempFile.getParent() + "/temp");
                     debugProcess.redirectErrorStream(true);
 
                     Process debug = debugProcess.start();
 
+                    // Write debug commands to the process
                     try (BufferedWriter debugInput = new BufferedWriter(new OutputStreamWriter(debug.getOutputStream()))) {
-                        String userInput = inputArea.getText();
                         debugInput.write("break main\n"); // Set a breakpoint at main
                         debugInput.write("run\n");        // Run the program
-                        debugInput.write(userInput + "\n"); // Additional user commands if needed
+                        debugInput.write(getConsoleInput() + "\n"); // Additional user commands if needed
                         debugInput.flush();
                     }
 
+                    // Read debugger output
                     BufferedReader reader = new BufferedReader(new InputStreamReader(debug.getInputStream()));
                     StringBuilder debugOutput = new StringBuilder();
                     String line;
@@ -814,39 +569,36 @@ public class CustomIDE extends Application {
                         debugOutput.append(line).append("\n");
                     }
 
-                    System.out.println("Debugger output:\n" + debugOutput);
-
-                    Platform.runLater(() -> outputArea.setText(debugOutput.toString()));
+                    // Display the debugger output in the console area
+                    appendToConsole("Debugger Output:\n" + debugOutput.toString());
                 } else {
-                    // Capture the error message from the compiler
+                    // Display compilation errors
                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
                     StringBuilder errorMessage = new StringBuilder();
                     String line;
                     while ((line = errorReader.readLine()) != null) {
                         errorMessage.append(line).append("\n");
                     }
-                    System.err.println("Compilation errors: " + errorMessage);
-
-                    Platform.runLater(() -> outputArea.setText("Compilation failed:\n" + errorMessage.toString()));
+                    appendToConsole("Compilation failed:\n" + errorMessage.toString());
                 }
 
+                // Clean up temporary files
                 tempFile.delete();
                 File tempBinary = new File(tempFile.getParent() + "/temp");
                 if (tempBinary.exists()) {
                     tempBinary.delete();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                Platform.runLater(() -> outputArea.setText("Error debugging code: " + e.getMessage()));
+                appendToConsole("Error debugging code: " + e.getMessage());
             }
         }).start();
     }
 
+
     private void deleteCode() {
         codeArea.clear();
-        outputArea.clear();
-        inputArea.clear();
-        outputArea.setText("Code, input, and output areas have been cleared.");
+        consoleArea.clear();
+        appendToConsole("Code and console areas have been cleared.");
     }
 
     private void detailsAboutIDE() {
@@ -866,128 +618,109 @@ public class CustomIDE extends Application {
     private void codeAnalyze() {
         String code = codeArea.getText();
 
+        // Basic metrics
         int lines = code.split("\n").length;
         int words = code.split("\\s+").length;
         int characters = code.length();
 
+        // Data structures for analysis
         Set<String> variablesSet = new HashSet<>();
         Set<String> functionsSet = new HashSet<>();
         Set<String> classesSet = new HashSet<>();
         Set<String> dataStructuresSet = new HashSet<>();
         Set<String> algorithmsSet = new HashSet<>();
 
-        Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool)\\s+\\w+");
+        // Regex patterns
+        Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool|auto)\\s+(\\w+)\\b(?!\\s*\\()");
+
+        Pattern classPattern = Pattern.compile("\\b(class|struct)\\s+(\\w+)");
+        Pattern functionPattern = Pattern.compile("\\b(\\w+)\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*(?:\\{|\\n)");
+        Pattern dataStructurePattern = Pattern.compile("\\b(vector|list|deque|set|map|unordered_map|unordered_set|stack|queue|priority_queue|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|pair)\\b");
+        Pattern algorithmPattern = Pattern.compile("\\b(sort|find|binary_search|count|accumulate|reverse|shuffle|lower_bound|upper_bound|merge|quick_sort|dijkstra|kruskal|prim|floyd_warshall)\\b");
+
+        // Analyze variables
         Matcher variableMatcher = variablePattern.matcher(code);
         StringBuilder variables = new StringBuilder("Variables Created:\n");
         while (variableMatcher.find()) {
-            String variable = variableMatcher.group();
+            String variable = variableMatcher.group(2); // Capture variable name
             if (variablesSet.add(variable)) {
                 variables.append(variable).append("\n");
             }
         }
+        if (variablesSet.isEmpty()) {
+            variables.append("None\n");
+        }
 
-        Pattern classPattern = Pattern.compile("\\bclass\\s+\\w+");
+        // Analyze classes and structs
         Matcher classMatcher = classPattern.matcher(code);
-        StringBuilder classes = new StringBuilder("Classes Defined:\n");
+        StringBuilder classes = new StringBuilder("Classes/Structs Defined:\n");
         while (classMatcher.find()) {
-            String className = classMatcher.group();
+            String className = classMatcher.group(2); // Capture class/struct name
             if (classesSet.add(className)) {
                 classes.append(className).append("\n");
             }
         }
-        if (classes.length() == "Classes Defined:\n".length()) {
+        if (classesSet.isEmpty()) {
             classes.append("None\n");
         }
 
-        Pattern functionPattern = Pattern.compile("\\b\\w+\\s+\\w+\\s*\\([^\\)]*\\)\\s*\\{");
+        // Analyze functions
         Matcher functionMatcher = functionPattern.matcher(code);
         StringBuilder functions = new StringBuilder("Functions Defined:\n");
         while (functionMatcher.find()) {
-            String function = functionMatcher.group();
-            if (functionsSet.add(function)) {
-                functions.append(function).append("\n");
+            String functionName = functionMatcher.group(2); // Capture function name
+            if (functionsSet.add(functionName)) {
+                functions.append(functionName).append("\n");
             }
         }
-        if (functions.length() == "Functions Defined:\n".length()) {
+        if (functionsSet.isEmpty()) {
             functions.append("None\n");
         }
 
+        // Analyze data structures
+        Matcher dataStructureMatcher = dataStructurePattern.matcher(code);
         StringBuilder dataStructures = new StringBuilder("Data Structures Used:\n");
-        if (code.contains("vector") && dataStructuresSet.add("Vector (Dynamic Array)")) {
-            dataStructures.append("Vector (Dynamic Array)\n");
+        while (dataStructureMatcher.find()) {
+            String dataStructure = dataStructureMatcher.group();
+            if (dataStructuresSet.add(dataStructure)) {
+                dataStructures.append(dataStructure).append("\n");
+            }
         }
-        if (code.contains("list") && dataStructuresSet.add("List (Linked List)")) {
-            dataStructures.append("List (Linked List)\n");
-        }
-        if (code.contains("map") && dataStructuresSet.add("Map (Hash Map)")) {
-            dataStructures.append("Map (Hash Map)\n");
-        }
-        if (code.contains("set") && dataStructuresSet.add("Set (Hash Set)")) {
-            dataStructures.append("Set (Hash Set)\n");
-        }
-        if (code.contains("array") && dataStructuresSet.add("Array")) {
-            dataStructures.append("Array\n");
-        }
-        if (code.contains("stack") && dataStructuresSet.add("Stack")) {
-            dataStructures.append("Stack\n");
-        }
-        if (code.contains("queue") && dataStructuresSet.add("Queue")) {
-            dataStructures.append("Queue\n");
-        }
-        if (code.contains("priority_queue") && dataStructuresSet.add("Priority Queue")) {
-            dataStructures.append("Priority Queue\n");
-        }
-        if (code.contains("deque") && dataStructuresSet.add("Deque (Double-ended Queue)")) {
-            dataStructures.append("Deque (Double-ended Queue)\n");
-        }
-        if (dataStructures.length() == "Data Structures Used:\n".length()) {
+        if (dataStructuresSet.isEmpty()) {
             dataStructures.append("None\n");
         }
 
+        // Analyze algorithms
+        Matcher algorithmMatcher = algorithmPattern.matcher(code);
         StringBuilder algorithms = new StringBuilder("Algorithms Detected:\n");
-        if (code.contains("sort") && algorithmsSet.add("Sorting Algorithm (e.g., std::sort)")) {
-            algorithms.append("Sorting Algorithm (e.g., std::sort)\n");
+        while (algorithmMatcher.find()) {
+            String algorithm = algorithmMatcher.group();
+            if (algorithmsSet.add(algorithm)) {
+                algorithms.append(algorithm).append("\n");
+            }
         }
-        if (code.contains("binary_search") && algorithmsSet.add("Binary Search Algorithm")) {
-            algorithms.append("Binary Search Algorithm\n");
-        }
-        if (code.contains("reverse") && algorithmsSet.add("Reversal Algorithm (e.g., std::reverse)")) {
-            algorithms.append("Reversal Algorithm (e.g., std::reverse)\n");
-        }
-        if (code.contains("merge") && algorithmsSet.add("Merge Sort Algorithm")) {
-            algorithms.append("Merge Sort Algorithm\n");
-        }
-        if (code.contains("quick_sort") && algorithmsSet.add("Quick Sort Algorithm")) {
-            algorithms.append("Quick Sort Algorithm\n");
-        }
-        if (code.contains("dijkstra") && algorithmsSet.add("Dijkstra's Shortest Path Algorithm")) {
-            algorithms.append("Dijkstra's Shortest Path Algorithm\n");
-        }
-        if (code.contains("kruskal") && algorithmsSet.add("Kruskal's Minimum Spanning Tree Algorithm")) {
-            algorithms.append("Kruskal's Minimum Spanning Tree Algorithm\n");
-        }
-        if (code.contains("prim") && algorithmsSet.add("Prim's Minimum Spanning Tree Algorithm")) {
-            algorithms.append("Prim's Minimum Spanning Tree Algorithm\n");
-        }
-        if (code.contains("floyd_warshall") && algorithmsSet.add("Floyd-Warshall Algorithm (All-Pairs Shortest Path)")) {
-            algorithms.append("Floyd-Warshall Algorithm (All-Pairs Shortest Path)\n");
-        }
-        if (algorithms.length() == "Algorithms Detected:\n".length()) {
+        if (algorithmsSet.isEmpty()) {
             algorithms.append("None\n");
         }
 
+        // Feedback for code quality
         String feedback = "Feedback:\n"
                 + "1. Ensure variable names are meaningful and self-explanatory.\n"
                 + "2. Use comments to describe complex logic.\n"
                 + "3. Follow consistent indentation and spacing for readability.\n"
                 + "4. Avoid deeply nested loops; consider breaking into smaller functions.\n"
-                + "5. Use appropriate data structures and algorithms for efficient code.\n";
+                + "5. Use appropriate data structures and algorithms for efficient code.\n"
+                + "6. Avoid global variables; prefer local scope where possible.\n"
+                + "7. Use const-correctness for variables and functions where applicable.\n";
 
+        // Compile analysis results
         String analysis = String.format(
                 "Code Analysis:\nLines: %d\nWords: %d\nCharacters: %d\n\n%s\n%s\n%s\n%s\n%s\n\n%s",
                 lines, words, characters, variables.toString(), classes.toString(), functions.toString(),
                 dataStructures.toString(), algorithms.toString(), feedback);
-        outputArea.setText(analysis);
+
+        // Display results in the output area// Replace with actual analysis
+        appendToConsole(analysis);
     }
 
 
@@ -1032,40 +765,60 @@ public class CustomIDE extends Application {
             );
             formattedCode.append(formattedFunction).append("\n\n");
         }
-        String finalFormattedCode = formattedCode.toString().trim();
-        codeArea.replaceText(finalFormattedCode);
-        outputArea.setText("Code formatted successfully!");
+        // Replace with actual formatted code
+        codeArea.replaceText(String.valueOf(formattedCode));
+        appendToConsole("Code formatted successfully!");
     }
 
 
     private void appDocumentation() {
+        // Create a TextArea for documentation
         TextArea docTextArea = new TextArea();
         docTextArea.setText(
-                "Welcome to Enhanced IDE!\n\n"
-                        + "Features:\n"
-                        + "1. Code Editing: Write your C++ code with syntax highlighting.\n"
-                        + "2. File Operations: Open, save, or create new files directly in the IDE.\n"
-                        + "3. Run Code: Compile and execute C++ code with support for input/output.\n"
-                        + "4. Debug Code: Debug your code using the integrated GDB support.\n"
-                        + "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n"
-                        + "6. Format Code: Automatically format your code for readability.\n"
-                        + "7. Documentation: View app features and functionality.\n\n"
-                        + "Developed by: Taz, Jamil, Rihin\nVersion: 1.0"
+                "Welcome to Enhanced IDE!\n\n" +
+                        "Features:\n" +
+                        "1. Code Editing: Write your C++ code with syntax highlighting.\n" +
+                        "2. File Operations: Open, save, or create new files directly in the IDE.\n" +
+                        "3. Run Code: Compile and execute C++ code with support for input/output.\n" +
+                        "4. Debug Code: Debug your code using the integrated GDB support.\n" +
+                        "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n" +
+                        "6. Format Code: Automatically format your code for readability.\n" +
+                        "7. Documentation: View app features and functionality.\n\n" +
+                        "Keyboard Shortcuts:\n" +
+                        "- Ctrl + S: Save the current file\n" +
+                        "- Ctrl + O: Open a file\n" +
+                        "- Ctrl + N: Create a new file\n" +
+                        "- Ctrl + R: Run the code\n" +
+                        "- Ctrl + D: Debug the code\n" +
+                        "- Ctrl + Z: Undo\n" +
+                        "- Ctrl + Y: Redo\n\n" +
+                        "Developed by: Taz, Jamil, Rihin\n" +
+                        "Version: 1.0\n" +
+                        "License: MIST"
         );
-        docTextArea.setEditable(false);
-        docTextArea.setWrapText(true);
+        docTextArea.setEditable(false); // Make it read-only
+        docTextArea.setWrapText(true); // Enable text wrapping
+        docTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 18px;"); // Monospace font for better readability
+
+        // Create a ScrollPane to handle overflow
         ScrollPane scrollPane = new ScrollPane(docTextArea);
-        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToWidth(true); // Fit the width of the TextArea
+        scrollPane.setPrefSize(600, 400); // Set preferred size for the dialog
+
+        // Create an Alert dialog for documentation
         Alert docAlert = new Alert(Alert.AlertType.INFORMATION);
         docAlert.setTitle("Application Documentation");
         docAlert.setHeaderText("Enhanced IDE Documentation");
-        docAlert.getDialogPane().setContent(scrollPane);
+        docAlert.getDialogPane().setContent(scrollPane); // Add the ScrollPane to the dialog
+        docAlert.getDialogPane().setPrefSize(620, 420); // Set preferred size for the dialog pane
+
+        // Show the dialog and wait for user interaction
         docAlert.showAndWait();
     }
 
     private void applySyntaxHighlighting(String text) {
         // Define regex patterns for keywords, types, comments, strings, etc.
-        String keywordPattern = "\\b(int|double|float|char|bool|void|if|else|while|for|return|using|namespace|include|std|cin|cout|vector|endl|main)\\b";
+        String keywordPattern = "\\b(int|double|float|char|bool|void|if|else|while|for|return|using|namespace|include|std|cin|cout|vector|endl|main|class|struct|template|typename|public|private|protected|const|static|virtual|inline|enum|union|decltype|auto|nullptr)\\b";
         String commentPattern = "//[^\n]*|/\\*(.|\\R)*?\\*/";
         String stringPattern = "\"([^\"\\\\]|\\\\.)*\"";
         String numberPattern = "\\b(\\d+\\.\\d*|\\d*\\.\\d+|\\d+|0x[0-9a-fA-F]+|0b[01]+|0[0-7]+)\\b";
@@ -1074,8 +827,7 @@ public class CustomIDE extends Application {
         String symbolPattern = "[,\\=\\+\\-\\*\\/\\;\\#\\<>\\(\\)\\{\\}\\[\\]]|[&|!%<>\\?\\:\\=\\^\\~\\.,]";
         String variablePattern = "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b";
         String builtinPattern = "\\b(cin|cout|endl)\\b";
-        String typePattern = "\\b(string|vector|list|deque|set|map|unordered_map|unordered_set|pair|queue|stack|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|complex|class|public|private|protected|const|static|virtual|inline|typename|enum|struct|union|decltype|auto|nullptr)\\b";
-
+        String typePattern = "\\b(string|vector|list|deque|set|map|unordered_map|unordered_set|pair|queue|stack|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|complex)\\b";
 
         String stlFunctionPattern = "\\b([a-zA-Z_][a-zA-Z0-9_]*\\." +
                 "pair\\.first|pair\\.second|" +
