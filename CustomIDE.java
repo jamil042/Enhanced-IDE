@@ -44,6 +44,9 @@ public class CustomIDE extends Application {
     private Map<String, Object> variables = new HashMap<>(); // Track variables and their values
     private Map<String, Rectangle> variableBoxes = new HashMap<>(); // Track variable boxes
     private Map<String, Text> variableTexts = new HashMap<>(); // Track variable text labels
+    private Map<String, String> fileContents = new HashMap<>();
+    private Map<String, File> fileMap = new HashMap<>();
+    //private String currentFileName = null;
 
     @Override
     public void start(Stage primaryStage) {
@@ -59,8 +62,9 @@ public class CustomIDE extends Application {
         fileListView.getItems().add(currentFileName); // Add the first default file
         fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
+                fileContents.put(currentFileName, codeArea.getText());
                 currentFileName = newVal;
-                codeArea.clear(); // Clear the code area (or load content based on actual implementation)
+                codeArea.replaceText(fileContents.get(newVal));
             }
         });
 
@@ -103,7 +107,7 @@ public class CustomIDE extends Application {
 
         // Pane for visualization
         visualizationPane = new Pane();
-        visualizationPane.setPrefSize(600, 400);
+        visualizationPane.setPrefSize(1000, 500);
         visualizationPane.setStyle("-fx-background-color: #f0f0f0;");
 
         // Buttons for navigation
@@ -147,9 +151,9 @@ public class CustomIDE extends Application {
         String currentLine = codeLines.get(currentLineIndex).trim();
 
         // Handle variable declarations and assignments
-        if (currentLine.matches("(int|float|double|string)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
+        if (currentLine.matches("(int|float|double|string|char|bool|short)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
             // Extract variable name and value
-            String[] parts = currentLine.split("=");
+            String[] parts = currentLine.split("=|;");
             String declaration = parts[0].trim();
             String[] declParts = declaration.split("\\s+");
             String type = declParts[0];
@@ -158,22 +162,38 @@ public class CustomIDE extends Application {
             Object value = null;
             if (parts.length > 1) {
                 value = evaluateExpression(parts[1].replace(";", "").trim(), type);
+            } else {
+                // Assign default values for char, string, bool, and short
+                if (type.equals("char")) {
+                    value = '\0';  // Default null character
+                } else if (type.equals("string")) {
+                    value = "null"; // Default empty string
+                } else if (type.equals("bool")) {
+                    value = false; // Default false
+                } else if (type.equals("short")) {
+                    value = (short) 0; // Default short value
+                }
             }
 
             // Update variables map
             variables.put(varName, value);
 
             // Draw variable box
-            Rectangle rect = new Rectangle(10, 50 + variables.size() * 40, 100, 30);
-            rect.setFill(Color.LIGHTBLUE);
-            rect.setStroke(Color.BLACK);
+            if (variableBoxes.containsKey(varName)) {
+                variableTexts.get(varName).setText(varName + " = " + value); // Update text directly
+            } else {
+                // **New variable: Create UI elements**
+                Rectangle rect = new Rectangle(10, 50 + (variables.size() - 1) * 40, 100, 30);
+                rect.setFill(Color.LIGHTBLUE);
+                rect.setStroke(Color.BLACK);
 
-            Text varText = new Text(15, 70 + variables.size() * 40, varName + " = " + value);
-            varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                Text varText = new Text(15, 70 + (variables.size() - 1) * 40, varName + " = " + value);
+                varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
-            visualizationPane.getChildren().addAll(rect, varText);
-            variableBoxes.put(varName, rect);
-            variableTexts.put(varName, varText);
+                visualizationPane.getChildren().addAll(rect, varText);
+                variableBoxes.put(varName, rect);
+                variableTexts.put(varName, varText);
+            }
         } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
             // Handle assignments
             String[] parts = currentLine.split("=");
@@ -190,11 +210,22 @@ public class CustomIDE extends Application {
                     type = "float";
                 } else if (currentValue instanceof String) {
                     type = "string";
+                } else if (currentValue instanceof Character) {
+                    type = "char";
+                } else if (currentValue instanceof Boolean) {
+                    type = "bool";
+                } else if (currentValue instanceof Short) {
+                    type = "short";
                 }
             }
 
             // Evaluate the value
-            Object value = evaluateExpression(valueStr, type);
+            Object value;
+            if (type.equals("char") && valueStr.matches("'.'")) {
+                value = valueStr.charAt(1); // Extract the character inside single quotes
+            } else {
+                value = evaluateExpression(valueStr, type);
+            }
 
             // Update variable value
             variables.put(varName, value);
@@ -223,42 +254,114 @@ public class CustomIDE extends Application {
     }
 
     private Object evaluateExpression(String expression, String type) {
-        // Simple evaluation for arithmetic expressions (e.g., "a + b")
-        String[] tokens = expression.split("[+\\-*/]");
-        if (tokens.length == 1) {
-            // If it's a single variable or number
-            if (variables.containsKey(tokens[0].trim())) {
-                return variables.get(tokens[0].trim()); // Return variable value
+        expression = expression.trim();
+
+        if (type.equals("char") && expression.matches("'.'")) {
+            return expression.charAt(1);
+        }
+        if (type.equals("string") && expression.startsWith("\"") && expression.endsWith("\"")) {
+            return expression.substring(1, expression.length() - 1);
+        }
+        if (type.equals("bool")) {
+            return Boolean.parseBoolean(expression);
+        }
+        if (type.equals("short")) {
+            return Short.parseShort(expression);
+        }
+
+        if (variables.containsKey(expression)) {
+            return variables.get(expression);
+        }
+
+        try {
+            switch (type) {
+                case "int": return Integer.parseInt(expression);
+                case "float": return Float.parseFloat(expression);
+                case "double": return Double.parseDouble(expression);
+                case "string": return expression.replace("\"", "");
+                case "char": return expression.length() == 3 ? expression.charAt(1) : '\0';
+                case "bool": return Boolean.parseBoolean(expression);
+                case "short": return Short.parseShort(expression);
+            }
+        } catch (NumberFormatException ignored) {}
+
+        return evaluateArithmeticExpression(expression);
+    }
+
+    private Object evaluateArithmeticExpression(String expression) {
+        List<String> postfix = infixToPostfix(expression);
+        Stack<Number> stack = new Stack<>();
+
+        for (String token : postfix) {
+            if (token.matches("\\d+")) {  // Integer case
+                stack.push(Integer.parseInt(token));
+            } else if (token.matches("\\d+\\.\\d+")) {  // Double case
+                stack.push(Double.parseDouble(token));
+            } else if (variables.containsKey(token)) {
+                stack.push((Number) variables.get(token));
             } else {
-                switch (type) {
-                    case "int":
-                        return Integer.parseInt(tokens[0].trim());
-                    case "float":
-                        return Float.parseFloat(tokens[0].trim());
-                    case "double":
-                        return Double.parseDouble(tokens[0].trim());
-                    case "string":
-                        return tokens[0].trim().replace("\"", "");
-                    default:
-                        return 0;
+                Number b = stack.pop();
+                Number a = stack.pop();
+
+                if (a instanceof Integer && b instanceof Integer) {
+                    switch (token) {
+                        case "+": stack.push(a.intValue() + b.intValue()); break;
+                        case "-": stack.push(a.intValue() - b.intValue()); break;
+                        case "*": stack.push(a.intValue() * b.intValue()); break;
+                        case "/": stack.push(a.intValue() / b.intValue()); break;
+                    }
+                } else { // At least one operand is a Double
+                    double aVal = a.doubleValue();
+                    double bVal = b.doubleValue();
+                    double result=0;
+                    switch (token) {
+                        case "+": result=(aVal + bVal); break;
+                        case "-": result=(aVal - bVal); break;
+                        case "*": result=(aVal * bVal); break;
+                        case "/": result=(aVal / bVal); break;
+                    }
+                    //result=Math.round(result * 100.0) / 100.0;
+                    stack.push(result);
                 }
             }
-        } else {
-            // Handle arithmetic expressions
-            double a = variables.containsKey(tokens[0].trim()) ? ((Number) variables.get(tokens[0].trim())).doubleValue() : Double.parseDouble(tokens[0].trim());
-            double b = variables.containsKey(tokens[1].trim()) ? ((Number) variables.get(tokens[1].trim())).doubleValue() : Double.parseDouble(tokens[1].trim());
-            if (expression.contains("+")) {
-                return a + b;
-            } else if (expression.contains("-")) {
-                return a - b;
-            } else if (expression.contains("*")) {
-                return a * b;
-            } else if (expression.contains("/")) {
-                return a / b;
+        }
+        return stack.pop();
+    }
+
+
+    private List<String> infixToPostfix(String expression) {
+        List<String> output = new ArrayList<>();
+        Stack<String> operators = new Stack<>();
+        Map<String, Integer> precedence = Map.of("+", 1, "-", 1, "*", 2, "/", 2);
+
+        StringTokenizer tokenizer = new StringTokenizer(expression, "+-*/()", true);
+        while (tokenizer.hasMoreTokens()) {
+            String token = tokenizer.nextToken().trim();
+            if (token.isEmpty()) continue;
+
+            if (token.matches("\\d+(\\.\\d+)?") || variables.containsKey(token)) {
+                output.add(token);
+            } else if (token.equals("(")) {
+                operators.push(token);
+            } else if (token.equals(")")) {
+                while (!operators.isEmpty() && !operators.peek().equals("(")) {
+                    output.add(operators.pop());
+                }
+                operators.pop();
+            } else {
+                while (!operators.isEmpty() && precedence.getOrDefault(operators.peek(), 0) >= precedence.get(token)) {
+                    output.add(operators.pop());
+                }
+                operators.push(token);
             }
         }
-        return 0;
+        while (!operators.isEmpty()) {
+            output.add(operators.pop());
+        }
+        return output;
     }
+
+
 
     private String evaluateCoutStatement(String coutLine) {
         // Extract the expression inside cout
@@ -282,7 +385,7 @@ public class CustomIDE extends Application {
         initializeCodeLines();
     }
 
-    // Rest of the code remains unchanged...
+
 
     // Add a "Visualize" button to the menu or toolbar
     private MenuBar createMenuBar(Stage primaryStage) {
@@ -293,19 +396,17 @@ public class CustomIDE extends Application {
         MenuItem saveFile = new MenuItem("Save");
         MenuItem newFile = new MenuItem("New");
         MenuItem closeFile = new MenuItem("Close");
-        MenuItem deleteFile = new MenuItem("Delete");
+        //MenuItem deleteFile = new MenuItem("Delete");
 
-        fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile, deleteFile);
+        fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile);
 
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
-        MenuItem visualizeCode = new MenuItem("Visualize"); // Add Visualize button
+        MenuItem visualizeCode = new MenuItem("Visualize");
         runMenu.getItems().addAll(runCode, visualizeCode);
 
-        // Add action for the Visualize button
         visualizeCode.setOnAction(e -> startVisualization());
 
-        // Rest of the menu setup...
         Menu debugMenu = new Menu("Debug");
         MenuItem debugCode = new MenuItem("Debug");
         debugMenu.getItems().add(debugCode);
@@ -330,11 +431,13 @@ public class CustomIDE extends Application {
 
         menuBar.getMenus().addAll(fileMenu, runMenu, debugMenu, toolsMenu, settingMenu, helpMenu);
 
+        newFile.setOnAction(e -> createNewFile(primaryStage));
         openFile.setOnAction(e -> openFile(primaryStage));
-        newFile.setOnAction(e -> saveFile(primaryStage));
+        saveFile.setOnAction(e -> saveFile(primaryStage));
+        closeFile.setOnAction(e -> closeFile(primaryStage));
         runCode.setOnAction(e -> runCode());
         debugCode.setOnAction(e -> debugCode());
-        deleteCode.setOnAction(e -> deleteCode());
+        //deleteCode.setOnAction(e -> deleteCode());
         aboutApp.setOnAction(e -> detailsAboutIDE());
         formatCode.setOnAction(e -> codeFormat());
         analyzeCode.setOnAction(e -> codeAnalyze());
@@ -342,13 +445,55 @@ public class CustomIDE extends Application {
         lightMode.setOnAction(e -> applyLightMode());
         darkMode.setOnAction(e -> applyDarkMode());
 
-
-
-
         return menuBar;
     }
 
-    // Rest of your existing code...
+    private void createNewFile(Stage stage) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Create New File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
+        File file = fileChooser.showSaveDialog(stage);
+
+        if (file != null) {
+            String fileName = file.getName();
+            if (!fileListView.getItems().contains(fileName)) {
+                fileListView.getItems().add(fileName);
+                fileContents.put(fileName, "");
+                currentFileName = fileName;
+                codeArea.clear();
+            }
+        }
+    }
+
+    private void closeFile(Stage stage) {
+        if (fileContents.containsKey(currentFileName)) {
+            String currentContent = fileContents.get(currentFileName);
+            String codeAreaContent = codeArea.getText();
+
+            if (!currentContent.equals(codeAreaContent)) {
+                Alert alert = new Alert(AlertType.CONFIRMATION);
+                alert.setTitle("Unsaved Changes");
+                alert.setHeaderText("You have unsaved changes.");
+                alert.setContentText("Do you want to save them before closing the file?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    saveFile(stage);
+                }
+            }
+
+            fileListView.getItems().remove(currentFileName);
+            fileContents.remove(currentFileName);
+            if (!fileListView.getItems().isEmpty()) {
+                currentFileName = fileListView.getItems().get(0);
+                codeArea.replaceText(fileContents.get(currentFileName));
+            } else {
+                currentFileName = "Untitled1";
+                codeArea.clear();
+            }
+        }
+    }
+
+
     private CodeArea createCodeArea() {
         CodeArea codeArea = new CodeArea();
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
@@ -412,73 +557,46 @@ public class CustomIDE extends Application {
 
 
     private void openFile(Stage stage) {
-        if (codeArea.getText().isEmpty() || !codeArea.getText().equals(getFileContent(currentFileName))) {
-            // Prompt the user to save unsaved changes before opening a new file
-            Alert alert = new Alert(AlertType.CONFIRMATION);
-            alert.setTitle("Unsaved Changes");
-            alert.setHeaderText("You have unsaved changes.");
-            alert.setContentText("Do you want to save them before opening a new file?");
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                saveFile(stage);
-            }
-        }
-
-        // Open the file chooser dialog
         FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
         fileChooser.setTitle("Open File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
-            // Update the current file name
-            currentFileName = file.getName();
-
-            // Add the opened file to the fileListView if it's not already there
-            if (!fileListView.getItems().contains(currentFileName)) {
-                fileListView.getItems().add(currentFileName);
-            }
-
-            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                codeArea.clear();  // Clear the code area before loading the new file
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    codeArea.appendText(line + "\n");  // Append file content to the code area
+            String fileName = file.getName();
+            if (!fileListView.getItems().contains(fileName)) {
+                fileListView.getItems().add(fileName);
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    StringBuilder content = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        content.append(line).append("\n");
+                    }
+                    fileContents.put(fileName, content.toString());
+                    currentFileName = fileName;
+                    codeArea.replaceText(content.toString());
+                } catch (IOException e) {
+                    showError("Error opening file", e.getMessage());
                 }
-            } catch (IOException e) {
-                showError("Error opening file", e.getMessage());
             }
         }
     }
 
 
-
     private void saveFile(Stage stage) {
-        // Initialize the file chooser
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save File");
+        if (currentFileName != null) {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save File");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
+            File file = fileChooser.showSaveDialog(stage);
 
-        // Set file extension filter for C++ files
-        FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("C++ Files", "*.cpp");
-        fileChooser.getExtensionFilters().add(extensionFilter);
-
-        // Show save dialog
-        File file = fileChooser.showSaveDialog(stage);
-
-        if (file != null) {
-            // If the file doesn't have a .cpp extension, add it
-            if (!file.getName().endsWith(".cpp")) {
-                file = new File(file.getAbsolutePath() + ".cpp");
-            }
-
-            // Try saving the file
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-                // Write the content of the codeArea to the selected file
-                writer.write(codeArea.getText());
-            } catch (IOException e) {
-                // Display an error dialog in case of failure
-                showError("Error saving file", e.getMessage());
-                e.printStackTrace(); // Log the error for better debugging
+            if (file != null) {
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                    writer.write(codeArea.getText());
+                    fileContents.put(currentFileName, codeArea.getText());
+                } catch (IOException e) {
+                    showError("Error saving file", e.getMessage());
+                }
             }
         }
     }
