@@ -1,36 +1,21 @@
 import javafx.application.Application;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javafx.application.Application;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.OutputStreamWriter;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import javafx.application.Platform; // For Platform.runLater()
-import javafx.scene.control.Alert.AlertType;
-import javafx.stage.Stage;
-import javafx.scene.Scene;
+import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import javafx.scene.Scene;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Alert;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import org.fxmisc.richtext.LineNumberFactory;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -39,8 +24,11 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
+
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 public class CustomIDE extends Application {
 
@@ -53,10 +41,9 @@ public class CustomIDE extends Application {
     private List<String> codeLines = new ArrayList<>(); // Store individual lines of code
     private Pane visualizationPane; // Pane for visualization
     private Label currentLineLabel; // Label to display the current line
-    private Map<String, Integer> variables = new HashMap<>(); // Track variables and their values
+    private Map<String, Object> variables = new HashMap<>(); // Track variables and their values
     private Map<String, Rectangle> variableBoxes = new HashMap<>(); // Track variable boxes
     private Map<String, Text> variableTexts = new HashMap<>(); // Track variable text labels
-    private Map<String, Object> variable = new HashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
@@ -134,147 +121,6 @@ public class CustomIDE extends Application {
         return visualizationBox;
     }
 
-//    private void visualizeNextLine() {
-//        if (currentLineIndex < codeLines.size() - 1) {
-//            currentLineIndex++;
-//            updateVisualization();
-//        }
-//    }
-//
-//    private void visualizePreviousLine() {
-//        if (currentLineIndex > 0) {
-//            currentLineIndex--;
-//            updateVisualization();
-//        }
-//    }
-//
-//
-//    private void updateVisualization() {
-//        // Update the current line label
-//        currentLineLabel.setText("Current Line: " + codeLines.get(currentLineIndex));
-//
-//        // Highlight the current line in the code area
-//        codeArea.moveTo(currentLineIndex, 0);
-//        codeArea.requestFollowCaret();
-//
-//        // Parse and visualize the current line
-//        String currentLine = codeLines.get(currentLineIndex).trim();
-//
-//        // Example: Handle variable declarations and assignments
-//        if (currentLine.startsWith("int ")) {
-//            // Extract variable name and value
-//            String[] parts = currentLine.split("=");
-//            String varName = parts[0].replace("int", "").trim();
-//            int value = 0;
-//            if (parts.length > 1) {
-//                value = evaluateExpression(parts[1].replace(";", "").trim());
-//            }
-//
-//            // Update variables map
-//            variables.put(varName, value);
-//
-//            // Draw variable box
-//            Rectangle rect = new Rectangle(10, 50 + variables.size() * 40, 100, 30);
-//            rect.setFill(Color.LIGHTBLUE);
-//            rect.setStroke(Color.BLACK);
-//
-//            Text varText = new Text(15, 70 + variables.size() * 40, varName + " = " + value);
-//            varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//
-//            visualizationPane.getChildren().addAll(rect, varText);
-//            variableBoxes.put(varName, rect);
-//            variableTexts.put(varName, varText);
-//        } else if (currentLine.contains("=")) {
-//            // Handle assignments
-//            String[] parts = currentLine.split("=");
-//            String varName = parts[0].trim();
-//            String valueStr = parts[1].replace(";", "").trim();
-//
-//            // Evaluate the value (e.g., handle arithmetic expressions)
-//            int value = evaluateExpression(valueStr);
-//
-//            // Update variable value
-//            variables.put(varName, value);
-//
-//            // Update visualization
-//            if (variableBoxes.containsKey(varName)) {
-//                // Remove old text
-//                Text oldText = variableTexts.get(varName);
-//                visualizationPane.getChildren().remove(oldText);
-//
-//                // Add new text
-//                Text newText = new Text(oldText.getX(), oldText.getY(), varName + " = " + value);
-//                newText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//                visualizationPane.getChildren().add(newText);
-//
-//                // Update variableTexts map
-//                variableTexts.put(varName, newText);
-//            }
-//        } else if (currentLine.startsWith("cout")) {
-//            // Handle cout statements
-//            String output = evaluateCoutStatement(currentLine);
-//            Text outputText = new Text(10, 200, "Output: " + output);
-//            outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-//            visualizationPane.getChildren().add(outputText);
-//        }
-//    }
-//
-//    private int evaluateExpression(String expression) {
-//        // Simple evaluation for arithmetic expressions (e.g., "a + b")
-//        String[] tokens = expression.split("[+\\-*/]");
-//        if (tokens.length == 1) {
-//            // If it's a single variable or number
-//            if (variables.containsKey(tokens[0].trim())) {
-//                return variables.get(tokens[0].trim()); // Return variable value
-//            } else {
-//                return Integer.parseInt(tokens[0].trim()); // Return number
-//            }
-//        } else {
-//            // Handle arithmetic expressions
-//            int a = variables.getOrDefault(tokens[0].trim(), 0);
-//            int b = variables.getOrDefault(tokens[1].trim(), 0);
-//            if (expression.contains("+")) {
-//                return a + b;
-//            } else if (expression.contains("-")) {
-//                return a - b;
-//            } else if (expression.contains("*")) {
-//                return a * b;
-//            } else if (expression.contains("/")) {
-//                return a / b;
-//            }
-//        }
-//        return 0;
-//    }
-//
-//    private String evaluateCoutStatement(String coutLine) {
-//        // Extract the expression inside cout
-//        String expression = coutLine.replace("cout", "").replace("<<", "").replace(";", "").trim();
-//        return String.valueOf(evaluateExpression(expression));
-//    }
-//
-//    private void initializeCodeLines() {
-//        String code = codeArea.getText();
-//        codeLines = Arrays.asList(code.split("\n"));
-//        currentLineIndex = 0;
-//        variables.clear(); // Reset variables
-//        variableBoxes.clear(); // Reset variable boxes
-//        variableTexts.clear(); // Reset variable texts
-//        visualizationPane.getChildren().clear(); // Clear visualization pane
-//        updateVisualization();
-//    }
-//
-//    // Add this method to the "Visualize" button action
-//    private void startVisualization() {
-//        initializeCodeLines();
-//    }
-
-
-
-
-
-    // Global variable to hold the script engine (initialize once)
-    private ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
-
     private void visualizeNextLine() {
         if (currentLineIndex < codeLines.size() - 1) {
             currentLineIndex++;
@@ -289,223 +135,154 @@ public class CustomIDE extends Application {
         }
     }
 
-    /**
-     * Updated visualization method:
-     * - Skips lines with "main(".
-     * - Splits a line by semicolons so that multiple expressions per line are processed.
-     * - Delegates processing of variable declarations, assignments, and cout statements.
-     */
     private void updateVisualization() {
-        if (codeLines.isEmpty() || currentLineIndex < 0 || currentLineIndex >= codeLines.size()) {
-            return;
-        }
+        // Update the current line label
+        currentLineLabel.setText("Current Line: " + codeLines.get(currentLineIndex));
 
-        String currentLine = codeLines.get(currentLineIndex).trim();
-
-        // Skip processing lines that define functions like main() or that are empty.
-        if (currentLine.isEmpty() || currentLine.contains("main(")) {
-            currentLineLabel.setText("Skipping non-executable line: " + currentLine);
-            return;
-        }
-
-        // Update current line label and move caret in code area.
-        currentLineLabel.setText("Current Line: " + currentLine);
+        // Highlight the current line in the code area
         codeArea.moveTo(currentLineIndex, 0);
         codeArea.requestFollowCaret();
 
-        // Process each expression (split by semicolon)
-        String[] expressions = currentLine.split(";");
-        for (String expr : expressions) {
-            expr = expr.trim();
-            if (expr.isEmpty()) continue;
-            if (expr.startsWith("int ") || expr.startsWith("float ") || expr.startsWith("String ")) {
-                processDeclaration(expr);
-            } else if (expr.startsWith("cout")) {
-                processCout(expr);
-            } else if (expr.contains("=")) {
-                processAssignment(expr);
+        // Parse and visualize the current line
+        String currentLine = codeLines.get(currentLineIndex).trim();
+
+        // Handle variable declarations and assignments
+        if (currentLine.matches("(int|float|double|string)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
+            // Extract variable name and value
+            String[] parts = currentLine.split("=");
+            String declaration = parts[0].trim();
+            String[] declParts = declaration.split("\\s+");
+            String type = declParts[0];
+            String varName = declParts[1];
+
+            Object value = null;
+            if (parts.length > 1) {
+                value = evaluateExpression(parts[1].replace(";", "").trim(), type);
             }
-            // You could add additional expression handlers here if needed.
-        }
-    }
 
-    /**
-     * Process a declaration such as:
-     *    int a = 5
-     *    float b = 3.14
-     *    String s = "Hello"
-     */
-    private void processDeclaration(String stmt) {
-        // Regex pattern to extract the type, variable name, and (optional) assigned value.
-        Pattern pattern = Pattern.compile("^(int|float|String)\\s+(\\w+)(\\s*=\\s*(.+))?$");
-        Matcher matcher = pattern.matcher(stmt);
-        if (matcher.find()) {
-            String type = matcher.group(1);
-            String varName = matcher.group(2);
-            String valueExpr = matcher.group(4);
+            // Update variables map
+            variables.put(varName, value);
 
-            Object value;
-            if (valueExpr == null) {
-                // Use default values if no assignment.
-                if (type.equals("int")) {
-                    value = 0;
-                } else if (type.equals("float")) {
-                    value = 0.0;
-                } else {
-                    value = "";
-                }
-            } else {
-                value = evaluateExpression(valueExpr.trim());
-                // Coerce the evaluated result to the expected type.
-                if (type.equals("int")) {
-                    if (value instanceof Number) {
-                        value = ((Number) value).intValue();
-                    } else {
-                        try {
-                            value = Integer.parseInt(value.toString());
-                        } catch (NumberFormatException ex) {
-                            value = 0;
-                        }
-                    }
-                } else if (type.equals("float")) {
-                    if (value instanceof Number) {
-                        value = ((Number) value).doubleValue();
-                    } else {
-                        try {
-                            value = Double.parseDouble(value.toString());
-                        } catch (NumberFormatException ex) {
-                            value = 0.0;
-                        }
-                    }
-                } else if (type.equals("String")) {
-                    value = value.toString();
-                }
-            }
-            variable.put(varName, value);
-            drawOrUpdateVariable(varName, value);
-        }
-    }
-
-    /**
-     * Process an assignment such as:
-     *    a = 2*a + b/5
-     */
-    private void processAssignment(String stmt) {
-        // Split only at the first "=" to handle expressions that may contain "=" later.
-        int eqIndex = stmt.indexOf("=");
-        if (eqIndex < 0) return;
-        String varName = stmt.substring(0, eqIndex).trim();
-        String valueExpr = stmt.substring(eqIndex + 1).trim();
-
-        Object value = evaluateExpression(valueExpr);
-        // If the variable already exists, try to coerce the value to its type.
-        if (variable.containsKey(varName)) {
-            Object oldVal = variable.get(varName);
-            if (oldVal instanceof Integer) {
-                if (value instanceof Number) {
-                    value = ((Number) value).intValue();
-                } else {
-                    try {
-                        value = Integer.parseInt(value.toString());
-                    } catch (NumberFormatException ex) {
-                        value = 0;
-                    }
-                }
-            } else if (oldVal instanceof Double) {
-                if (value instanceof Number) {
-                    value = ((Number) value).doubleValue();
-                } else {
-                    try {
-                        value = Double.parseDouble(value.toString());
-                    } catch (NumberFormatException ex) {
-                        value = 0.0;
-                    }
-                }
-            } else if (oldVal instanceof String) {
-                value = value.toString();
-            }
-        }
-        variable.put(varName, value);
-        drawOrUpdateVariable(varName, value);
-    }
-
-    /**
-     * Process a cout statement such as:
-     *    cout << a + 5
-     */
-    private void processCout(String stmt) {
-        // Remove "cout" and any "<<" tokens.
-        String outputExpr = stmt.replace("cout", "").replace("<<", "").replace(";", "").trim();
-        Object result = evaluateExpression(outputExpr);
-        Text outputText = new Text(10, 200 + visualizationPane.getChildren().size() * 20, "Output: " + result);
-        outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        visualizationPane.getChildren().add(outputText);
-    }
-
-    /**
-     * Helper method to draw a new variable box or update the text if it already exists.
-     */
-    private void drawOrUpdateVariable(String varName, Object value) {
-        if (variableTexts.containsKey(varName)) {
-            // Update existing text.
-            Text varText = variableTexts.get(varName);
-            varText.setText(varName + " = " + value);
-        } else {
-            // Draw a new box.
-            int yPos = 50 + variableBoxes.size() * 40;
-            Rectangle rect = new Rectangle(10, yPos, 100, 30);
+            // Draw variable box
+            Rectangle rect = new Rectangle(10, 50 + variables.size() * 40, 100, 30);
             rect.setFill(Color.LIGHTBLUE);
             rect.setStroke(Color.BLACK);
 
-            Text varText = new Text(15, yPos + 20, varName + " = " + value);
+            Text varText = new Text(15, 70 + variables.size() * 40, varName + " = " + value);
             varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
             visualizationPane.getChildren().addAll(rect, varText);
             variableBoxes.put(varName, rect);
             variableTexts.put(varName, varText);
+        } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
+            // Handle assignments
+            String[] parts = currentLine.split("=");
+            String varName = parts[0].trim();
+            String valueStr = parts[1].replace(";", "").trim();
+
+            // Determine the type of the variable
+            String type = "int"; // Default type
+            if (variables.containsKey(varName)) {
+                Object currentValue = variables.get(varName);
+                if (currentValue instanceof Double) {
+                    type = "double";
+                } else if (currentValue instanceof Float) {
+                    type = "float";
+                } else if (currentValue instanceof String) {
+                    type = "string";
+                }
+            }
+
+            // Evaluate the value
+            Object value = evaluateExpression(valueStr, type);
+
+            // Update variable value
+            variables.put(varName, value);
+
+            // Update visualization
+            if (variableBoxes.containsKey(varName)) {
+                // Remove old text
+                Text oldText = variableTexts.get(varName);
+                visualizationPane.getChildren().remove(oldText);
+
+                // Add new text
+                Text newText = new Text(oldText.getX(), oldText.getY(), varName + " = " + value);
+                newText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                visualizationPane.getChildren().add(newText);
+
+                // Update variableTexts map
+                variableTexts.put(varName, newText);
+            }
+        } else if (currentLine.startsWith("cout")) {
+            // Handle cout statements
+            String output = evaluateCoutStatement(currentLine);
+            Text outputText = new Text(10, 200, "Output: " + output);
+            outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+            visualizationPane.getChildren().add(outputText);
         }
     }
 
-    /**
-     * Evaluate an arithmetic/string expression using the JavaScript engine.
-     * All current variables are added to the engine's context.
-     */
-    private Object evaluateExpression(String expression) {
-        // Update engine bindings with current variables.
-        for (Map.Entry<String, Object> entry : variable.entrySet()) {
-            engine.put(entry.getKey(), entry.getValue());
+    private Object evaluateExpression(String expression, String type) {
+        // Simple evaluation for arithmetic expressions (e.g., "a + b")
+        String[] tokens = expression.split("[+\\-*/]");
+        if (tokens.length == 1) {
+            // If it's a single variable or number
+            if (variables.containsKey(tokens[0].trim())) {
+                return variables.get(tokens[0].trim()); // Return variable value
+            } else {
+                switch (type) {
+                    case "int":
+                        return Integer.parseInt(tokens[0].trim());
+                    case "float":
+                        return Float.parseFloat(tokens[0].trim());
+                    case "double":
+                        return Double.parseDouble(tokens[0].trim());
+                    case "string":
+                        return tokens[0].trim().replace("\"", "");
+                    default:
+                        return 0;
+                }
+            }
+        } else {
+            // Handle arithmetic expressions
+            double a = variables.containsKey(tokens[0].trim()) ? ((Number) variables.get(tokens[0].trim())).doubleValue() : Double.parseDouble(tokens[0].trim());
+            double b = variables.containsKey(tokens[1].trim()) ? ((Number) variables.get(tokens[1].trim())).doubleValue() : Double.parseDouble(tokens[1].trim());
+            if (expression.contains("+")) {
+                return a + b;
+            } else if (expression.contains("-")) {
+                return a - b;
+            } else if (expression.contains("*")) {
+                return a * b;
+            } else if (expression.contains("/")) {
+                return a / b;
+            }
         }
-        try {
-            Object result = engine.eval(expression);
-            return result;
-        } catch (ScriptException e) {
-            showError("Evaluation Error", "Error evaluating expression: " + expression + "\n" + e.getMessage());
-
-            return 0;
-        }
+        return 0;
     }
 
-    /**
-     * Called when starting visualization; splits the code into lines and resets state.
-     */
+    private String evaluateCoutStatement(String coutLine) {
+        // Extract the expression inside cout
+        String expression = coutLine.replace("cout", "").replace("<<", "").replace(";", "").trim();
+        return String.valueOf(evaluateExpression(expression, "int"));
+    }
+
     private void initializeCodeLines() {
         String code = codeArea.getText();
         codeLines = Arrays.asList(code.split("\n"));
         currentLineIndex = 0;
-        variables.clear();           // Reset variables
-        variableBoxes.clear();       // Reset variable boxes
-        variableTexts.clear();       // Reset variable text labels
+        variables.clear(); // Reset variables
+        variableBoxes.clear(); // Reset variable boxes
+        variableTexts.clear(); // Reset variable texts
         visualizationPane.getChildren().clear(); // Clear visualization pane
         updateVisualization();
     }
 
-    /**
-     * Called by the Visualize button.
-     */
+    // Add this method to the "Visualize" button action
     private void startVisualization() {
         initializeCodeLines();
     }
 
+    // Rest of the code remains unchanged...
 
     // Add a "Visualize" button to the menu or toolbar
     private MenuBar createMenuBar(Stage primaryStage) {
