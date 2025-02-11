@@ -31,7 +31,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.input.KeyCode;
 
-public class  Main extends Application {
+public class  Custom_IDE extends Application {
 
     private CodeArea codeArea;
     private TextArea consoleArea;
