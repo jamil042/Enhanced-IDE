@@ -1,18 +1,19 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
+import javafx.stage.StageStyle;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Alert;
 import java.io.BufferedReader;
-import javafx.scene.image.Image;
-import javafx.stage.StageStyle;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.StackPane;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -29,14 +30,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.input.KeyCode;
 
-public class  Custom_IDE extends Application {
+public class Custom_IDE extends Application {
 
     private CodeArea codeArea;
-    private TextArea consoleArea;
-    private Process runningProcess;
-    private boolean isWaitingForInput = false;
+    private TextArea outputArea;
+    private TextArea inputArea;
     private ListView<String> fileListView;
     private String currentFileName = "Untitled1";
     private Map<String, String> fileContentMap = new HashMap<>();
@@ -111,6 +110,7 @@ public class  Custom_IDE extends Application {
     private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
 
+        // File Menu
         Menu fileMenu = new Menu("File");
         MenuItem openFile = new MenuItem("Open");
         MenuItem saveFile = new MenuItem("Save");
@@ -118,20 +118,24 @@ public class  Custom_IDE extends Application {
         MenuItem closeFile = new MenuItem("Close");
         fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile);
 
+        // Run Menu
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
         runMenu.getItems().add(runCode);
 
+        // Debug Menu
         Menu debugMenu = new Menu("Debug");
         MenuItem debugCode = new MenuItem("Debug");
         debugMenu.getItems().add(debugCode);
 
+        // Tools Menu
         Menu toolsMenu = new Menu("Tools");
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
         MenuItem deleteCode = new MenuItem("Clear Code");
         toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode);
 
+        // Setting Menu
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
         MenuItem lightMode = new MenuItem("Light Mode");
@@ -139,13 +143,16 @@ public class  Custom_IDE extends Application {
         themeMenu.getItems().addAll(lightMode, darkMode);
         settingMenu.getItems().add(themeMenu);
 
+        // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem aboutApp = new MenuItem("About");
         MenuItem documentation = new MenuItem("Documentation");
         helpMenu.getItems().addAll(documentation, aboutApp);
 
+        // Add Menus to MenuBar
         menuBar.getMenus().addAll(fileMenu, runMenu, debugMenu, toolsMenu, settingMenu, helpMenu);
 
+        // Event Handlers
         openFile.setOnAction(e -> openFile(primaryStage));
         newFile.setOnAction(e -> newFile(primaryStage));
         saveFile.setOnAction(e -> saveFile(primaryStage));
@@ -178,102 +185,46 @@ public class  Custom_IDE extends Application {
     }
 
 
-    private TextArea createConsoleArea() {
-        TextArea consoleArea = new TextArea();
-        consoleArea.setEditable(true);
-        consoleArea.setStyle(
-                "-fx-control-inner-background: #1E1E1E; " +
-                        "-fx-text-fill: #D4D4D4; " +
-                        "-fx-font-family: 'Consolas', 'Menlo', 'monospace'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-padding: 5px; " +
-                        "-fx-border-color: #333333; " +
-                        "-fx-border-width: 1px; " +
-                        "-fx-border-radius: 3px;"
-        );
-        consoleArea.setPrefHeight(200);
-
-        consoleArea.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                event.consume(); // Prevent adding a newline
-                if (isWaitingForInput) {
-                    handleConsoleInput(consoleArea);
-                } else {
-                    appendToConsole("\nError: The program is not waiting for input.\n> ");
-                }
-            }
-        });
-
-        return consoleArea;
-    }
-
-    private void handleConsoleInput(TextArea consoleArea) {
-        String text = consoleArea.getText();
-        String[] lines = text.split("\n");
-        String input = lines[lines.length - 1].substring(2);
-
-        if (isWaitingForInput && runningProcess != null && runningProcess.isAlive()) {
-            sendInputToProgram(input);
-            isWaitingForInput = false;
-        } else {
-            appendToConsole("\nError: The program is not waiting for input.\n> ");
-        }
-    }
-    private boolean isInputRequired() {
-        return codeArea.getText().contains("cin");
-    }
-
-    private String getConsoleInput() {
-        // Wait for user input in the console area
-        String input = consoleArea.getText().trim();
-        if (input.startsWith("> ")) {
-            input = input.substring(2); // Remove the prompt
-        }
-        return input.isEmpty() ? null : input;
-    }
-
-    private void clearConsoleInput() {
-        Platform.runLater(() -> {
-            consoleArea.clear();
-        });
-    }
-
-    private void appendToConsole(String text) {
-        Platform.runLater(() -> {
-            consoleArea.appendText(text + "\n");
-            consoleArea.positionCaret(consoleArea.getText().length());
-        });
-    }
-
-
-    private void sendInputToProgram(String input) {
-        try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(runningProcess.getOutputStream()))) {
-            processInput.write(input + "\n");
-            processInput.flush();
-        } catch (IOException e) {
-            appendToConsole("\nError sending input to program: " + e.getMessage());
-        }
-    }
-
     private SplitPane createSplitPane() {
-        consoleArea = createConsoleArea();
-        codeArea = createCodeArea();
+        // Create output area for displaying results
+        outputArea = new TextArea();
+        outputArea.setEditable(false);
+        outputArea.setStyle("-fx-control-inner-background: black; -fx-text-fill: white;");
+        outputArea.setPrefHeight(150); // Adjust as needed
+
+        // Create input area for user input (e.g., for running programs)
+        inputArea = new TextArea();
+        inputArea.setPromptText("Enter input for your program here...");
+        inputArea.setPrefHeight(100); // Adjustable
+
+        // Create the code area (for coding)
+        codeArea = createCodeArea(); // Initialize the codeArea
+        VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea); // Make it scrollable
+
+        // Create the SplitPane
         SplitPane splitPane = new SplitPane();
-        splitPane.setOrientation(Orientation.VERTICAL);
-        splitPane.getItems().addAll(codeArea, consoleArea);
-        splitPane.setDividerPositions(0.7);
+        splitPane.setOrientation(Orientation.VERTICAL); // Code on top, input/output at the bottom
+
+        // Add areas to the split pane (use scrollableCodeArea instead of codeArea)
+        splitPane.getItems().addAll(scrollableCodeArea, inputArea, outputArea);
+
+        // Set divider positions (code gets 70%, input/output get 30%)
+        splitPane.setDividerPositions(0.7, 0.85);
 
         return splitPane;
     }
 
+
     private void initializeFileListView() {
         fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.equals(currentFileName)) {
+                // Save the current file's content to the map
                 fileContentMap.put(currentFileName, codeArea.getText());
 
+                // Switch to the new file
                 currentFileName = newVal;
                 String content = fileContentMap.getOrDefault(currentFileName, "");
-                codeArea.replaceText(content);
+                codeArea.replaceText(content); // Load the new file's content
             }
         });
     }
@@ -396,91 +347,52 @@ public class  Custom_IDE extends Application {
 
 
     private void runCode() {
-        new Thread(() -> {
-            try {
-                String code = codeArea.getText();
-                boolean requiresInput = isInputRequired();
+        try {
+            String code = codeArea.getText();
 
-                File tempFile = File.createTempFile("CustomIDE", ".cpp");
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
-                    writer.write(code);
-                }
-
-                ProcessBuilder compileProcess = new ProcessBuilder("g++", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
-                Process compile = compileProcess.start();
-                compile.waitFor();
-
-                if (compile.exitValue() == 0) {
-                    appendToConsole("\nCompilation Successful!\n");
-                    ProcessBuilder runProcess = new ProcessBuilder(tempFile.getParent() + "/temp");
-                    runProcess.redirectErrorStream(true);
-                    runningProcess = runProcess.start();
-
-                    Thread outputThread = new Thread(() -> {
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(runningProcess.getInputStream()))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                appendToConsole(line); // Display output in the console
-
-                                // Check if the program is waiting for input
-                                if (requiresInput && (line.contains(":") || line.contains(">"))) {
-                                    isWaitingForInput = true;
-                                }
-                            }
-                        } catch (IOException e) {
-                            appendToConsole("\nError reading program output: " + e.getMessage());
-                        }
-                    });
-                    outputThread.start();
-
-                    Thread inputThread = new Thread(() -> {
-                        try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(runningProcess.getOutputStream()))) {
-                            while (runningProcess != null && runningProcess.isAlive()) { // Check if runningProcess is not null
-                                if (isWaitingForInput) {
-                                    String userInput = getConsoleInput(); // Get input from the console area
-                                    if (userInput != null && !userInput.isEmpty()) {
-                                        processInput.write(userInput + "\n"); // Send input to the program
-                                        processInput.flush(); // Flush the output stream
-                                        isWaitingForInput = false; // Reset input state
-                                        clearConsoleInput(); // Clear the input after sending
-                                    }
-                                }
-                            }
-                        } catch (IOException e) {
-                            appendToConsole("\nError sending input to program: " + e.getMessage());
-                        }
-                    });
-                    inputThread.start();
-
-                    runningProcess.waitFor();
-                    outputThread.join();
-                    inputThread.join();
-                } else {
-                    BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
-                    StringBuilder errorMessage = new StringBuilder();
-                    String errorLine;
-                    while ((errorLine = errorReader.readLine()) != null) {
-                        errorMessage.append(errorLine).append("\n");
-                    }
-                    appendToConsole("\nCompilation failed:\n" + errorMessage.toString());
-                }
-
-                // Clean up temporary files
-                tempFile.delete();
-                File tempBinary = new File(tempFile.getParent() + "/temp");
-                if (tempBinary.exists()) {
-                    tempBinary.delete();
-                }
-            } catch (Exception e) {
-                appendToConsole("\nError running code: " + e.getMessage());
-            } finally {
-                if (runningProcess != null) {
-                    runningProcess.destroy();
-                }
-                runningProcess = null;
-                isWaitingForInput = false;
+            File tempFile = File.createTempFile("CustomIDE", ".cpp");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+                writer.write(code);
             }
-        }).start();
+
+
+            ProcessBuilder compileProcess = new ProcessBuilder("g++", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
+            Process compile = compileProcess.start();
+            compile.waitFor();
+
+            if (compile.exitValue() == 0) {
+                ProcessBuilder runProcess = new ProcessBuilder(tempFile.getParent() + "/temp");
+                runProcess.redirectErrorStream(true);
+
+                Process run = runProcess.start();
+
+
+                try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(run.getOutputStream()))) {
+                    processInput.write(inputArea.getText());
+                    processInput.flush();
+                }
+
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
+                StringBuilder output = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+                outputArea.setText(output.toString());
+            } else {
+                BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
+                StringBuilder errorMessage = new StringBuilder();
+                String line;
+                while ((line = errorReader.readLine()) != null) {
+                    errorMessage.append(line).append("\n");
+                }
+                outputArea.setText("Compilation failed:\n" + errorMessage.toString());
+            }
+
+        } catch (Exception e) {
+            outputArea.setText("Error running code: " + e.getMessage());
+        }
     }
 
     private void applyLightMode() {
@@ -502,33 +414,36 @@ public class  Custom_IDE extends Application {
         new Thread(() -> {
             try {
                 String code = codeArea.getText();
+                System.out.println("Code to debug:\n" + code);
 
                 File tempFile = File.createTempFile("CustomIDE", ".cpp");
+                System.out.println("Temporary file path: " + tempFile.getAbsolutePath());
+
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
                     writer.write(code);
                 }
 
-                // Compile the code with debug symbols
                 ProcessBuilder compileProcess = new ProcessBuilder("g++", "-g", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
+                System.out.println("Compilation command: g++ -g " + tempFile.getAbsolutePath() + " -o " + tempFile.getParent() + "/temp");
                 Process compile = compileProcess.start();
                 compile.waitFor();
 
                 if (compile.exitValue() == 0) {
-                    // Start the debugger (GDB)
+                    System.out.println("Compilation with debug symbols successful.");
+
                     ProcessBuilder debugProcess = new ProcessBuilder("gdb", tempFile.getParent() + "/temp");
                     debugProcess.redirectErrorStream(true);
 
                     Process debug = debugProcess.start();
 
-                    // Write debug commands to the process
                     try (BufferedWriter debugInput = new BufferedWriter(new OutputStreamWriter(debug.getOutputStream()))) {
+                        String userInput = inputArea.getText();
                         debugInput.write("break main\n"); // Set a breakpoint at main
                         debugInput.write("run\n");        // Run the program
-                        debugInput.write(getConsoleInput() + "\n"); // Additional user commands if needed
+                        debugInput.write(userInput + "\n"); // Additional user commands if needed
                         debugInput.flush();
                     }
 
-                    // Read debugger output
                     BufferedReader reader = new BufferedReader(new InputStreamReader(debug.getInputStream()));
                     StringBuilder debugOutput = new StringBuilder();
                     String line;
@@ -536,27 +451,30 @@ public class  Custom_IDE extends Application {
                         debugOutput.append(line).append("\n");
                     }
 
-                    // Display the debugger output in the console area
-                    appendToConsole("Debugger Output:\n" + debugOutput.toString());
+                    System.out.println("Debugger output:\n" + debugOutput);
+
+                    Platform.runLater(() -> outputArea.setText(debugOutput.toString()));
                 } else {
-                    // Display compilation errors
+                    // Capture the error message from the compiler
                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
                     StringBuilder errorMessage = new StringBuilder();
                     String line;
                     while ((line = errorReader.readLine()) != null) {
                         errorMessage.append(line).append("\n");
                     }
-                    appendToConsole("Compilation failed:\n" + errorMessage.toString());
+                    System.err.println("Compilation errors: " + errorMessage);
+
+                    Platform.runLater(() -> outputArea.setText("Compilation failed:\n" + errorMessage.toString()));
                 }
 
-                // Clean up temporary files
                 tempFile.delete();
                 File tempBinary = new File(tempFile.getParent() + "/temp");
                 if (tempBinary.exists()) {
                     tempBinary.delete();
                 }
             } catch (Exception e) {
-                appendToConsole("Error debugging code: " + e.getMessage());
+                e.printStackTrace();
+                Platform.runLater(() -> outputArea.setText("Error debugging code: " + e.getMessage()));
             }
         }).start();
     }
@@ -564,8 +482,9 @@ public class  Custom_IDE extends Application {
 
     private void deleteCode() {
         codeArea.clear();
-        consoleArea.clear();
-        appendToConsole("Code and console areas have been cleared.");
+        outputArea.clear();
+        inputArea.clear();
+        outputArea.setText("Code, input, and output areas have been cleared.");
     }
 
     private void detailsAboutIDE() {
@@ -590,12 +509,14 @@ public class  Custom_IDE extends Application {
         int words = code.split("\\s+").length;
         int characters = code.length();
 
+        // Data structures for analysis
         Set<String> variablesSet = new HashSet<>();
         Set<String> functionsSet = new HashSet<>();
         Set<String> classesSet = new HashSet<>();
         Set<String> dataStructuresSet = new HashSet<>();
         Set<String> algorithmsSet = new HashSet<>();
 
+        // Regex patterns
         Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool|auto)\\s+(\\w+)\\b(?!\\s*\\()");
 
         Pattern classPattern = Pattern.compile("\\b(class|struct)\\s+(\\w+)");
@@ -603,6 +524,7 @@ public class  Custom_IDE extends Application {
         Pattern dataStructurePattern = Pattern.compile("\\b(vector|list|deque|set|map|unordered_map|unordered_set|stack|queue|priority_queue|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|pair)\\b");
         Pattern algorithmPattern = Pattern.compile("\\b(sort|find|binary_search|count|accumulate|reverse|shuffle|lower_bound|upper_bound|merge|quick_sort|dijkstra|kruskal|prim|floyd_warshall)\\b");
 
+        // Analyze variables
         Matcher variableMatcher = variablePattern.matcher(code);
         StringBuilder variables = new StringBuilder("Variables Created:\n");
         while (variableMatcher.find()) {
@@ -615,10 +537,11 @@ public class  Custom_IDE extends Application {
             variables.append("None\n");
         }
 
+        // Analyze classes and structs
         Matcher classMatcher = classPattern.matcher(code);
         StringBuilder classes = new StringBuilder("Classes/Structs Defined:\n");
         while (classMatcher.find()) {
-            String className = classMatcher.group(2);
+            String className = classMatcher.group(2); // Capture class/struct name
             if (classesSet.add(className)) {
                 classes.append(className).append("\n");
             }
@@ -627,6 +550,7 @@ public class  Custom_IDE extends Application {
             classes.append("None\n");
         }
 
+        // Analyze functions
         Matcher functionMatcher = functionPattern.matcher(code);
         StringBuilder functions = new StringBuilder("Functions Defined:\n");
         while (functionMatcher.find()) {
@@ -639,6 +563,7 @@ public class  Custom_IDE extends Application {
             functions.append("None\n");
         }
 
+        // Analyze data structures
         Matcher dataStructureMatcher = dataStructurePattern.matcher(code);
         StringBuilder dataStructures = new StringBuilder("Data Structures Used:\n");
         while (dataStructureMatcher.find()) {
@@ -651,6 +576,7 @@ public class  Custom_IDE extends Application {
             dataStructures.append("None\n");
         }
 
+        // Analyze algorithms
         Matcher algorithmMatcher = algorithmPattern.matcher(code);
         StringBuilder algorithms = new StringBuilder("Algorithms Detected:\n");
         while (algorithmMatcher.find()) {
@@ -663,6 +589,7 @@ public class  Custom_IDE extends Application {
             algorithms.append("None\n");
         }
 
+        // Feedback for code quality
         String feedback = "Feedback:\n"
                 + "1. Ensure variable names are meaningful and self-explanatory.\n"
                 + "2. Use comments to describe complex logic.\n"
@@ -672,12 +599,14 @@ public class  Custom_IDE extends Application {
                 + "6. Avoid global variables; prefer local scope where possible.\n"
                 + "7. Use const-correctness for variables and functions where applicable.\n";
 
+        // Compile analysis results
         String analysis = String.format(
                 "Code Analysis:\nLines: %d\nWords: %d\nCharacters: %d\n\n%s\n%s\n%s\n%s\n%s\n\n%s",
                 lines, words, characters, variables.toString(), classes.toString(), functions.toString(),
                 dataStructures.toString(), algorithms.toString(), feedback);
 
-        appendToConsole(analysis);
+        // Display results in the output area// Replace with actual analysis
+        outputArea.setText(analysis);
     }
 
 
@@ -722,12 +651,14 @@ public class  Custom_IDE extends Application {
             );
             formattedCode.append(formattedFunction).append("\n\n");
         }
+        // Replace with actual formatted code
         codeArea.replaceText(String.valueOf(formattedCode));
-        appendToConsole("Code formatted successfully!");
+        outputArea.setText("Code formatted successfully!");
     }
 
 
     private void appDocumentation() {
+        // Create a TextArea for documentation
         TextArea docTextArea = new TextArea();
         docTextArea.setText(
                 "Welcome to Enhanced IDE!\n\n" +
@@ -751,19 +682,23 @@ public class  Custom_IDE extends Application {
                         "Version: 1.0\n" +
                         "License: MIST"
         );
-        docTextArea.setEditable(false);
-        docTextArea.setWrapText(true);
+        docTextArea.setEditable(false); // Make it read-only
+        docTextArea.setWrapText(true); // Enable text wrapping
         docTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 18px;"); // Monospace font for better readability
 
+        // Create a ScrollPane to handle overflow
         ScrollPane scrollPane = new ScrollPane(docTextArea);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setPrefSize(600, 400);
+        scrollPane.setFitToWidth(true); // Fit the width of the TextArea
+        scrollPane.setPrefSize(600, 400); // Set preferred size for the dialog
 
+        // Create an Alert dialog for documentation
         Alert docAlert = new Alert(Alert.AlertType.INFORMATION);
         docAlert.setTitle("Application Documentation");
         docAlert.setHeaderText("Enhanced IDE Documentation");
-        docAlert.getDialogPane().setContent(scrollPane);
-        docAlert.getDialogPane().setPrefSize(620, 420);
+        docAlert.getDialogPane().setContent(scrollPane); // Add the ScrollPane to the dialog
+        docAlert.getDialogPane().setPrefSize(620, 420); // Set preferred size for the dialog pane
+
+        // Show the dialog and wait for user interaction
         docAlert.showAndWait();
     }
 
@@ -773,7 +708,7 @@ public class  Custom_IDE extends Application {
         String commentPattern = "//[^\n]*|/\\*(.|\\R)*?\\*/";
         String stringPattern = "\"([^\"\\\\]|\\\\.)*\"";
         String numberPattern = "\\b(\\d+\\.\\d*|\\d*\\.\\d+|\\d+|0x[0-9a-fA-F]+|0b[01]+|0[0-7]+)\\b";
-        String headerPattern = "<[^>]{1,20}>";  // Limited to 20 characters
+        String headerPattern = "#\\s*include\\s*.*";
         String inbuildValueTypePattern = "\\b(true|false|NULL|INT_MAX|INT_MIN|SIZE_MAX|FLT_MAX|DBL_MAX|LDBL_MAX|NaN|INF)\\b";
         String symbolPattern = "[,\\=\\+\\-\\*\\/\\;\\#\\<>\\(\\)\\{\\}\\[\\]]|[&|!%<>\\?\\:\\=\\^\\~\\.,]";
         String variablePattern = "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b";
