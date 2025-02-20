@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
-public class Main extends Application {
+public class Custom_IDE extends Application {
 
     private CodeArea codeArea;
     private TextArea outputArea;
@@ -271,23 +271,29 @@ public class Main extends Application {
     }
 
 
+    private void switchToFile(String newFileName) {
+        // Save the current content to the current file's entry
+        fileContentMap.put(currentFileName, codeArea.getText());
+
+        // Update the current file name
+        currentFileName = newFileName;
+
+        // Load the new file's content into the codeArea
+        codeArea.replaceText(fileContentMap.getOrDefault(newFileName, ""));
+
+        // Update the list view selection
+        fileListView.getSelectionModel().select(newFileName);
+    }
 
     private void initializeFileListView() {
         fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.equals(currentFileName)) {
-                // Save the current file's content to the map
-                fileContentMap.put(currentFileName, codeArea.getText());
-
-                // Switch to the new file
-                currentFileName = newVal;
-                String content = fileContentMap.getOrDefault(currentFileName, "");
-                codeArea.replaceText(content); // Load the new file's content
+                switchToFile(newVal);
             }
         });
     }
 
     private void openFile(Stage stage) {
-        // Check for unsaved changes
         if (hasUnsavedChanges()) {
             promptSaveChanges(stage);
         }
@@ -298,29 +304,19 @@ public class Main extends Application {
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
-            // Save the current file's content to the map
-            fileContentMap.put(currentFileName, codeArea.getText());
-
-            // Update the current file name
-            currentFileName = file.getName();
-
-            // If the file is not already in the list, add it
-            if (!fileListView.getItems().contains(currentFileName)) {
-                fileListView.getItems().add(currentFileName);
+            String newFileName = file.getName();
+            if (!fileListView.getItems().contains(newFileName)) {
+                fileListView.getItems().add(newFileName);
             }
 
-            // Select the opened file in the list
-            fileListView.getSelectionModel().select(currentFileName);
-
-            // Load the file content into the code area
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 StringBuilder content = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     content.append(line).append("\n");
                 }
-                fileContentMap.put(currentFileName, content.toString());
-                codeArea.replaceText(content.toString());
+                fileContentMap.put(newFileName, content.toString());
+                switchToFile(newFileName);
             } catch (IOException e) {
                 showError("Error opening file", e.getMessage());
             }
@@ -335,7 +331,6 @@ public class Main extends Application {
         File file = fileChooser.showSaveDialog(stage);
 
         if (file != null) {
-            // Ensure the file has a .cpp extension
             if (!file.getName().endsWith(".cpp")) {
                 file = new File(file.getAbsolutePath() + ".cpp");
             }
@@ -344,21 +339,16 @@ public class Main extends Application {
                 String content = codeArea.getText();
                 writer.write(content);
 
-                // If the current file is an untitled file, remove it from the list
-                if (currentFileName.startsWith("Untitled")) {
+                boolean isUntitled = currentFileName.startsWith("Untitled");
+                if (isUntitled) {
                     fileListView.getItems().remove(currentFileName);
                     fileContentMap.remove(currentFileName);
                 }
 
-                // Update the current file name to the saved file name
-                currentFileName = file.getName();
-
-                // Add the new file name to the list and map
-                fileListView.getItems().add(currentFileName);
-                fileContentMap.put(currentFileName, content);
-
-                // Select the new file name in the list
-                fileListView.getSelectionModel().select(currentFileName);
+                String newFileName = file.getName();
+                fileListView.getItems().add(newFileName);
+                fileContentMap.put(newFileName, content);
+                switchToFile(newFileName);
             } catch (IOException e) {
                 showError("Error saving file", e.getMessage());
             }
@@ -366,57 +356,31 @@ public class Main extends Application {
     }
 
     private void newFile(Stage stage) {
-        // Save the current file's content to the map
-        fileContentMap.put(currentFileName, codeArea.getText());
-
-        // Clear the code area for a new file
-        codeArea.clear();
-
-        // Generate a new file name
-        currentFileName = "Untitled" + (fileListView.getItems().size() + 1);
-
-        // Add the new file name to the list and map
-        fileListView.getItems().add(currentFileName);
-        fileContentMap.put(currentFileName, "");
-
-        // Select the new file in the list
-        fileListView.getSelectionModel().select(currentFileName);
+        String newFileName = "Untitled" + (fileListView.getItems().size() + 1);
+        fileListView.getItems().add(newFileName);
+        fileContentMap.put(newFileName, "");
+        switchToFile(newFileName);
     }
 
     private void closeFile(Stage stage) {
-        // Check for unsaved changes
         if (hasUnsavedChanges()) {
             promptSaveChanges(stage);
         }
 
-        // Save the current file's content to the map
-        fileContentMap.put(currentFileName, codeArea.getText());
-
-        // Get the index of the current file
         int currentFileIndex = fileListView.getItems().indexOf(currentFileName);
-
-        // Remove the current file from the list and map
         fileListView.getItems().remove(currentFileName);
         fileContentMap.remove(currentFileName);
 
-        // If no files are left, create a new default file
         if (fileListView.getItems().isEmpty()) {
-            currentFileName = "Untitled1";
-            fileListView.getItems().add(currentFileName);
-            fileContentMap.put(currentFileName, "");
-            codeArea.replaceText("");
+            String newFileName = "Untitled1";
+            fileListView.getItems().add(newFileName);
+            fileContentMap.put(newFileName, "");
+            switchToFile(newFileName);
         } else {
-            // Determine the previous file
             int previousFileIndex = Math.max(0, currentFileIndex - 1);
-            currentFileName = fileListView.getItems().get(previousFileIndex);
-
-            // Load the previous file's content
-            String previousFileContent = fileContentMap.getOrDefault(currentFileName, "");
-            codeArea.replaceText(previousFileContent);
+            String newFileName = fileListView.getItems().get(previousFileIndex);
+            switchToFile(newFileName);
         }
-
-        // Update the selection in the list view
-        fileListView.getSelectionModel().select(currentFileName);
     }
 
     private boolean hasUnsavedChanges() {
