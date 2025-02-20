@@ -10,14 +10,17 @@ import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import javafx.stage.StageStyle;
 import org.fxmisc.flowless.VirtualizedScrollPane;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Alert;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import java.io.*;
@@ -31,7 +34,7 @@ import java.util.regex.Pattern;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
-public class Custom_IDE extends Application {
+public class Main extends Application {
 
     private CodeArea codeArea;
     private TextArea outputArea;
@@ -174,38 +177,91 @@ public class Custom_IDE extends Application {
         CodeArea codeArea = new CodeArea();
         codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
         codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
-        codeArea.setStyle(
-                "-fx-font-family: 'Consolas', 'Menlo', 'monospace'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-text-fill: #D4D4D4;"
-        );
+
+        // Default font size
+        final IntegerProperty fontSize = new SimpleIntegerProperty(14);
+
+        // Apply initial style
+        codeArea.styleProperty().bind(Bindings.concat(
+                "-fx-font-family: 'Courier New', 'Courier', 'monospace'; ",
+                "-fx-font-size: ", fontSize.asString(), "px; ",
+                "-fx-text-fill: #000000;" // Changed text color to black for better visibility
+        ));
+
+        // Handle Zoom In / Zoom Out using Mouse Scroll + Ctrl
+        codeArea.setOnScroll(event -> {
+            if (event.isControlDown()) {
+                if (event.getDeltaY() > 0) { // Scroll Up -> Zoom In
+                    fontSize.set(Math.min(fontSize.get() + 2, 30));
+                } else { // Scroll Down -> Zoom Out
+                    fontSize.set(Math.max(fontSize.get() - 2, 10));
+                }
+            }
+        });
+
+        // Handle Zoom In / Zoom Out using Keyboard Shortcuts (Ctrl + '+' and Ctrl + '-')
+        codeArea.setOnKeyPressed(event -> {
+            if (event.isControlDown()) {
+                switch (event.getCode()) {
+                    case EQUALS: // Ctrl + '=' (Zoom In)
+                    case PLUS: // Ctrl + '+'
+                        fontSize.set(Math.min(fontSize.get() + 2, 30));
+                        break;
+                    case MINUS: // Ctrl + '-'
+                        fontSize.set(Math.max(fontSize.get() - 2, 10));
+                        break;
+                    default:
+                        return;
+                }
+            }
+        });
+
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+
         return codeArea;
     }
+
 
 
     private SplitPane createSplitPane() {
         // Create output area for displaying results
         outputArea = new TextArea();
         outputArea.setEditable(false);
-        outputArea.setStyle("-fx-control-inner-background: black; -fx-text-fill: white;");
-        outputArea.setPrefHeight(150); // Adjust as needed
+        outputArea.setStyle("-fx-control-inner-background: black; " + // Pure black background
+                "-fx-text-fill: white; " + // White output text
+                "-fx-font-family: 'Courier New'; " + // Code::Blocks style font
+                "-fx-font-size: 16px; " + // Larger output text
+                "-fx-font-weight: bold; " + // BOLD output text
+                "-fx-border-color: transparent; " + // No visible border
+                "-fx-border-width: 1.5px; " +
+                "-fx-padding: 5px;");
+        outputArea.setPrefHeight(150);
 
-        // Create input area for user input (e.g., for running programs)
+        // Create input area with glass effect
         inputArea = new TextArea();
         inputArea.setPromptText("Enter input for your program here...");
-        inputArea.setPrefHeight(100); // Adjustable
+        inputArea.setStyle("-fx-control-inner-background: rgba(255, 255, 255, 0.2); " + // Glass effect
+                "-fx-text-fill: black; " + // Black text for input
+                "-fx-font-family: 'Consolas'; " +
+                "-fx-font-size: 14px; " +
+                "-fx-border-color: transparent; " + // Transparent border
+                "-fx-border-width: 1.5px; " +
+                "-fx-background-radius: 8px; " + // Rounded corners
+                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 3); " + // Blur effect
+                "-fx-padding: 5px; " +
+                "-fx-prompt-text-fill: rgba(50, 50, 50, 0.8);"); // Darker prompt text
+        inputArea.setPrefHeight(100);
 
         // Create the code area (for coding)
-        codeArea = createCodeArea(); // Initialize the codeArea
-        VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea); // Make it scrollable
+        codeArea = createCodeArea();
+        VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea);
 
         // Create the SplitPane
         SplitPane splitPane = new SplitPane();
-        splitPane.setOrientation(Orientation.VERTICAL); // Code on top, input/output at the bottom
+        splitPane.setOrientation(Orientation.VERTICAL);
 
-        // Add areas to the split pane (use scrollableCodeArea instead of codeArea)
+        // Add areas to the split pane
         splitPane.getItems().addAll(scrollableCodeArea, inputArea, outputArea);
 
         // Set divider positions (code gets 70%, input/output get 30%)
@@ -213,6 +269,7 @@ public class Custom_IDE extends Application {
 
         return splitPane;
     }
+
 
 
     private void initializeFileListView() {
@@ -230,6 +287,7 @@ public class Custom_IDE extends Application {
     }
 
     private void openFile(Stage stage) {
+        // Check for unsaved changes
         if (hasUnsavedChanges()) {
             promptSaveChanges(stage);
         }
@@ -240,12 +298,21 @@ public class Custom_IDE extends Application {
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
+            // Save the current file's content to the map
+            fileContentMap.put(currentFileName, codeArea.getText());
+
+            // Update the current file name
             currentFileName = file.getName();
+
+            // If the file is not already in the list, add it
             if (!fileListView.getItems().contains(currentFileName)) {
                 fileListView.getItems().add(currentFileName);
             }
+
+            // Select the opened file in the list
             fileListView.getSelectionModel().select(currentFileName);
 
+            // Load the file content into the code area
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 StringBuilder content = new StringBuilder();
                 String line;
@@ -268,6 +335,7 @@ public class Custom_IDE extends Application {
         File file = fileChooser.showSaveDialog(stage);
 
         if (file != null) {
+            // Ensure the file has a .cpp extension
             if (!file.getName().endsWith(".cpp")) {
                 file = new File(file.getAbsolutePath() + ".cpp");
             }
@@ -276,15 +344,20 @@ public class Custom_IDE extends Application {
                 String content = codeArea.getText();
                 writer.write(content);
 
-                String oldFileName = currentFileName;
+                // If the current file is an untitled file, remove it from the list
+                if (currentFileName.startsWith("Untitled")) {
+                    fileListView.getItems().remove(currentFileName);
+                    fileContentMap.remove(currentFileName);
+                }
+
+                // Update the current file name to the saved file name
                 currentFileName = file.getName();
 
-                fileListView.getItems().remove(oldFileName);
-                fileContentMap.remove(oldFileName);
-
+                // Add the new file name to the list and map
                 fileListView.getItems().add(currentFileName);
                 fileContentMap.put(currentFileName, content);
 
+                // Select the new file name in the list
                 fileListView.getSelectionModel().select(currentFileName);
             } catch (IOException e) {
                 showError("Error saving file", e.getMessage());
@@ -293,38 +366,56 @@ public class Custom_IDE extends Application {
     }
 
     private void newFile(Stage stage) {
+        // Save the current file's content to the map
+        fileContentMap.put(currentFileName, codeArea.getText());
+
+        // Clear the code area for a new file
         codeArea.clear();
+
+        // Generate a new file name
         currentFileName = "Untitled" + (fileListView.getItems().size() + 1);
+
+        // Add the new file name to the list and map
         fileListView.getItems().add(currentFileName);
         fileContentMap.put(currentFileName, "");
+
+        // Select the new file in the list
         fileListView.getSelectionModel().select(currentFileName);
     }
 
     private void closeFile(Stage stage) {
+        // Check for unsaved changes
         if (hasUnsavedChanges()) {
             promptSaveChanges(stage);
         }
 
+        // Save the current file's content to the map
         fileContentMap.put(currentFileName, codeArea.getText());
 
+        // Get the index of the current file
         int currentFileIndex = fileListView.getItems().indexOf(currentFileName);
 
+        // Remove the current file from the list and map
         fileListView.getItems().remove(currentFileName);
         fileContentMap.remove(currentFileName);
 
+        // If no files are left, create a new default file
         if (fileListView.getItems().isEmpty()) {
             currentFileName = "Untitled1";
             fileListView.getItems().add(currentFileName);
             fileContentMap.put(currentFileName, "");
             codeArea.replaceText("");
         } else {
+            // Determine the previous file
             int previousFileIndex = Math.max(0, currentFileIndex - 1);
             currentFileName = fileListView.getItems().get(previousFileIndex);
 
+            // Load the previous file's content
             String previousFileContent = fileContentMap.getOrDefault(currentFileName, "");
             codeArea.replaceText(previousFileContent);
         }
 
+        // Update the selection in the list view
         fileListView.getSelectionModel().select(currentFileName);
     }
 
