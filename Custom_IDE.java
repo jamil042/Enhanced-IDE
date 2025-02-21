@@ -1,3 +1,5 @@
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.image.Image;
@@ -9,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
@@ -34,7 +37,7 @@ import java.util.regex.Pattern;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
-public class Custom_IDE extends Application {
+public class Main extends Application {
 
     private CodeArea codeArea;
     private TextArea outputArea;
@@ -70,21 +73,43 @@ public class Custom_IDE extends Application {
             Platform.runLater(() -> {
                 splashStage.close();
                 BorderPane root = new BorderPane();
-
                 MenuBar menuBar = createMenuBar(primaryStage);
-
                 codeArea = createCodeArea();
+
+
+                // Create the "Files" label
+                Label filesLabel = new Label("File Section");
+                filesLabel.setStyle(
+                        "-fx-font-size: 18px; " +  // Larger font size for the section title
+                                "-fx-font-family: 'Segoe UI', sans-serif; " +  // Modern font family
+                                "-fx-font-weight: bold; " +  // Bold text
+                                "-fx-text-fill: #2c3e50; " +  // Darker text color for better contrast (matching fileListView theme)
+                                "-fx-background-color: rgba(173, 216, 230, 0.6); " +  // Light sky-blue background similar to fileListView
+                                "-fx-padding: 10px 15px; " +  // Padding inside the label
+                                "-fx-border-radius: 5px;"  // Rounded corners for the label
+                );
+
                 fileListView = new ListView<>();
                 fileListView.setPrefWidth(80);
                 fileListView.setMinWidth(60);
                 fileListView.getItems().add(currentFileName);
                 fileContentMap.put(currentFileName, "");
                 initializeFileListView();
-                VBox leftPane = new VBox(new Label("Files"), fileListView);
+
+                VBox leftPane = new VBox(filesLabel, fileListView);
                 leftPane.setPrefWidth(90);
                 leftPane.setMinWidth(70);
-                SplitPane centerSplitPane = createSplitPane();
+                leftPane.setStyle(
+                        "-fx-background-color: #f4f4f4; " +  // Light gray background for the VBox
+                                "-fx-padding: 0px; " +  // No extra padding
+                                "-fx-spacing: 0px;"  // No extra space between label and file list
+                );
+                filesLabel.setMaxWidth(Double.MAX_VALUE);
+                filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
+                leftPane.setFillWidth(true);
 
+
+                SplitPane centerSplitPane = createSplitPane();
                 SplitPane mainSplitPane = new SplitPane();
                 mainSplitPane.setOrientation(Orientation.HORIZONTAL);
                 mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
@@ -110,8 +135,12 @@ public class Custom_IDE extends Application {
         stage.setY(centerY);
     }
 
+
     private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
+
+        // Load the CSS file
+        menuBar.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
 
         // File Menu
         Menu fileMenu = new Menu("File");
@@ -225,41 +254,84 @@ public class Custom_IDE extends Application {
 
 
     private SplitPane createSplitPane() {
-        // Create output area for displaying results
+        // Create output area
         outputArea = new TextArea();
         outputArea.setEditable(false);
-        outputArea.setStyle("-fx-control-inner-background: black; " + // Pure black background
-                "-fx-text-fill: white; " + // White output text
-                "-fx-font-family: 'Courier New'; " + // Code::Blocks style font
-                "-fx-font-size: 16px; " + // Larger output text
-                "-fx-font-weight: bold; " + // BOLD output text
-                "-fx-border-color: transparent; " + // No visible border
+        outputArea.setStyle("-fx-control-inner-background: black; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-family: 'Courier New'; " +
+                "-fx-font-size: 16px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-border-color: transparent; " +
                 "-fx-border-width: 1.5px; " +
-                "-fx-padding: 5px;");
+                "-fx-padding: 0px;");
         outputArea.setPrefHeight(150);
 
-        // Create input area with glass effect
+        // Create input area
         inputArea = new TextArea();
-        inputArea.setPromptText("Enter input for your program here...");
-        inputArea.setStyle("-fx-control-inner-background: rgba(255, 255, 255, 0.2); " + // Glass effect
-                "-fx-text-fill: black; " + // Black text for input
-                "-fx-font-family: 'Consolas'; " +
-                "-fx-font-size: 14px; " +
-                "-fx-border-color: transparent; " + // Transparent border
-                "-fx-border-width: 1.5px; " +
-                "-fx-background-radius: 8px; " + // Rounded corners
-                "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 3); " + // Blur effect
-                "-fx-padding: 5px; " +
-                "-fx-prompt-text-fill: rgba(50, 50, 50, 0.8);"); // Darker prompt text
-        inputArea.setPrefHeight(100);
+        inputArea.setPromptText("Enter input here...");
+        inputArea.setStyle(
+                "-fx-control-inner-background: #ddfcf9; " + /* Soft blue background */
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-border-color: #89CFF0; " + /* Soft blue border */
+                        "-fx-border-width: 2px; " +
+                        "-fx-background-radius: 8px; " + /* Rounded corners */
+                        "-fx-padding: 3px; " +
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
+        );
 
-        // Create the code area (for coding)
+        // Hover effect - Brighter blue glow
+        inputArea.setOnMouseEntered(e -> inputArea.setStyle(
+                "-fx-control-inner-background: #c9f5f0; " + /* Slightly darker blue */
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-border-color: #4eb2f5; " + /* Brighter blue border */
+                        "-fx-border-width: 3px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-padding: 3px; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 255, 0.3), 8, 0, 0, 3);" + /* Blue glow */
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.6);"
+        ));
+
+        // Reset hover effect
+        inputArea.setOnMouseExited(e -> inputArea.setStyle(
+                "-fx-control-inner-background: #ddfcf9; " +
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-border-color: #b8fff3; " +
+                        "-fx-border-width: 2px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-padding: 3px; " +
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
+        ));
+
+        // Code area
         codeArea = createCodeArea();
         VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea);
 
-        // Create the SplitPane
+        // Create SplitPane
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(Orientation.VERTICAL);
+
+        // **Hide divider initially & add blue hover effect**
+        splitPane.setStyle("-fx-divider-color: transparent;");
+
+        // Hover - Soft Blue Divider
+        splitPane.setOnMouseEntered(e -> splitPane.setStyle("-fx-divider-color: rgba(30, 144, 255, 0.5);")); // DodgerBlue
+
+        // Click Effect - Glowing Blue
+        splitPane.setOnMousePressed(e -> splitPane.setStyle("-fx-divider-color: rgba(0, 102, 204, 1);")); // Deep Blue
+
+        // Release - Fade Out Effect
+        splitPane.setOnMouseReleased(e -> {
+            new Timeline(new KeyFrame(Duration.millis(300), evt ->
+                    splitPane.setStyle("-fx-divider-color: transparent;"))
+            ).play();
+        });
 
         // Add areas to the split pane
         splitPane.getItems().addAll(scrollableCodeArea, inputArea, outputArea);
@@ -271,27 +343,88 @@ public class Custom_IDE extends Application {
     }
 
 
+
     private void switchToFile(String newFileName) {
-        // Save the current content to the current file's entry
         fileContentMap.put(currentFileName, codeArea.getText());
-
-        // Update the current file name
         currentFileName = newFileName;
-
-        // Load the new file's content into the codeArea
         codeArea.replaceText(fileContentMap.getOrDefault(newFileName, ""));
-
-        // Update the list view selection
         fileListView.getSelectionModel().select(newFileName);
     }
 
     private void initializeFileListView() {
+        fileListView.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item);
+                    setStyle(
+                            "-fx-padding: 10px 14px; " +
+                                    "-fx-font-size: 14px; " +
+                                    "-fx-font-family: 'Segoe UI', sans-serif; " +
+                                    "-fx-text-fill: #2c3e50; " + /* Dark blue text */
+                                    "-fx-background-color: transparent; " +
+                                    "-fx-transition: all 0.3s ease-in-out;"
+                    );
+
+                    // Hover Effect: Light glow around the item with shadow
+                    setOnMouseEntered(e -> setStyle(
+                            "-fx-background-color: rgba(173, 216, 230, 0.3); " + /* Soft transparent light blue */
+                                    "-fx-text-fill: white; " +
+                                    "-fx-padding: 10px 14px; " +
+                                    "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5); "  // Subtle shadow for glowing effect
+                    ));
+
+                    setOnMouseExited(e -> setStyle(
+                            "-fx-background-color: transparent; " +
+                                    "-fx-text-fill: #2c3e50; " +
+                                    "-fx-padding: 10px 14px; " +
+                                    "-fx-effect: none;"
+                    ));
+
+                    // Selection Effect: Deep blue with stronger glow
+                    selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+                        if (isSelected) {
+                            setStyle(
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,255,0.5), 10, 0, 0, 3);"
+                            );
+                        } else {
+                            setStyle(
+                                    "-fx-background-color: transparent; " +
+                                            "-fx-text-fill: #2c3e50; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: none;"
+                            );
+                        }
+                    });
+                }
+            }
+        });
+
+        // Customizing File ListView Appearance
+        fileListView.setStyle(
+                "-fx-background-color: rgba(173, 216, 230, 0.1); " + // Light transparent background
+                        "-fx-border-color: rgba(0, 102, 204, 0.7); " + // Slightly transparent border
+                        "-fx-border-width: 0px;" +  // Removed border-radius effect
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,255,0.3), 12, 0, 0, 5);" // Glow effect for the listview
+        );
+
+        // Selection Handling
         fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.equals(currentFileName)) {
                 switchToFile(newVal);
             }
         });
     }
+
+
 
     private void openFile(Stage stage) {
         if (hasUnsavedChanges()) {
