@@ -2,9 +2,10 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -34,8 +35,6 @@ import java.util.Optional;
 import javafx.scene.control.TextArea;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
 
 public class Main extends Application {
 
@@ -271,7 +270,7 @@ public class Main extends Application {
         inputArea = new TextArea();
         inputArea.setPromptText("Enter input here...");
         inputArea.setStyle(
-                "-fx-control-inner-background: #ddfcf9; " + /* Soft blue background */
+                "-fx-control-inner-background: #ced9d7; " + /* Soft blue background */
                         "-fx-text-fill: #2c3e50; " +
                         "-fx-font-family: 'Consolas'; " +
                         "-fx-font-size: 14px; " +
@@ -284,11 +283,10 @@ public class Main extends Application {
 
         // Hover effect - Brighter blue glow
         inputArea.setOnMouseEntered(e -> inputArea.setStyle(
-                "-fx-control-inner-background: #c9f5f0; " + /* Slightly darker blue */
+                "-fx-control-inner-background: #ced9d7; " + /* Slightly darker blue */
                         "-fx-text-fill: #2c3e50; " +
                         "-fx-font-family: 'Consolas'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-border-color: #4eb2f5; " + /* Brighter blue border */
+                        "-fx-font-size: 14px; " +/* Brighter blue border */
                         "-fx-border-width: 3px; " +
                         "-fx-background-radius: 8px; " +
                         "-fx-padding: 3px; " +
@@ -298,11 +296,10 @@ public class Main extends Application {
 
         // Reset hover effect
         inputArea.setOnMouseExited(e -> inputArea.setStyle(
-                "-fx-control-inner-background: #ddfcf9; " +
+                "-fx-control-inner-background: #dce6e4; " +
                         "-fx-text-fill: #2c3e50; " +
                         "-fx-font-family: 'Consolas'; " +
                         "-fx-font-size: 14px; " +
-                        "-fx-border-color: #b8fff3; " +
                         "-fx-border-width: 2px; " +
                         "-fx-background-radius: 8px; " +
                         "-fx-padding: 3px; " +
@@ -353,6 +350,53 @@ public class Main extends Application {
 
     private void initializeFileListView() {
         fileListView.setCellFactory(lv -> new ListCell<String>() {
+            private final HBox hbox = new HBox();
+            private final Label fileNameLabel = new Label();
+            private final Label closeButton = new Label("✕"); // Unicode for 'X'
+            private final Region spacer = new Region(); // Spacer to push the close button to the end
+
+            {
+                // Styling the close button
+                closeButton.setStyle(
+                        "-fx-text-fill: #2c3e50; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                );
+
+                // Hover effect for the close button
+                closeButton.setOnMouseEntered(e -> closeButton.setStyle(
+                        "-fx-text-fill: red; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                ));
+
+                closeButton.setOnMouseExited(e -> closeButton.setStyle(
+                        "-fx-text-fill: #2c3e50; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                ));
+
+                // Action when close button is clicked
+                closeButton.setOnMouseClicked(e -> {
+                    String item = getItem();
+                    if (item != null) {
+                        fileListView.getItems().remove(item);
+                        if (item.equals(currentFileName)) {
+                            currentFileName = null;
+                            codeArea.clear();
+                        }
+                    }
+                });
+
+                // Configure the HBox layout
+                HBox.setHgrow(spacer, Priority.ALWAYS); // Spacer will take up all available space
+                hbox.getChildren().addAll(fileNameLabel, spacer, closeButton);
+                hbox.setAlignment(Pos.CENTER_LEFT);
+            }
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -360,45 +404,78 @@ public class Main extends Application {
                     setText(null);
                     setGraphic(null);
                 } else {
-                    setText(item);
+                    fileNameLabel.setText(item);
+                    setGraphic(hbox);
                     setStyle(
                             "-fx-padding: 10px 14px; " +
-                                    "-fx-font-size: 14px; " +
+                                    "-fx-font-size: 14px; " + // Default font size
                                     "-fx-font-family: 'Segoe UI', sans-serif; " +
                                     "-fx-text-fill: #2c3e50; " + /* Dark blue text */
-                                    "-fx-background-color: transparent; " +
+                                    "-fx-background-color: transparent; " + // Transparent background for items
                                     "-fx-transition: all 0.3s ease-in-out;"
                     );
 
                     // Hover Effect: Light glow around the item with shadow
-                    setOnMouseEntered(e -> setStyle(
-                            "-fx-background-color: rgba(173, 216, 230, 0.3); " + /* Soft transparent light blue */
-                                    "-fx-text-fill: white; " +
-                                    "-fx-padding: 10px 14px; " +
-                                    "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5); "  // Subtle shadow for glowing effect
-                    ));
+                    setOnMouseEntered(e -> {
+                        if (isSelected()) {
+                            // Apply both selection and hover styles
+                            setStyle(
+                                    "-fx-background-color: rgba(173, 216, 230, 0.5); " + /* Slightly transparent light blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                            );
+                        } else {
+                            // Apply only hover style
+                            setStyle(
+                                    "-fx-background-color: rgba(173, 216, 230, 0.3); " + /* Soft transparent light blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5);"  // Subtle shadow for glowing effect
+                            );
+                        }
+                    });
 
-                    setOnMouseExited(e -> setStyle(
-                            "-fx-background-color: transparent; " +
-                                    "-fx-text-fill: #2c3e50; " +
-                                    "-fx-padding: 10px 14px; " +
-                                    "-fx-effect: none;"
-                    ));
+                    setOnMouseExited(e -> {
+                        if (isSelected()) {
+                            // Revert to selection style only
+                            setStyle(
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                            );
+                        } else {
+                            // Revert to default style
+                            setStyle(
+                                    "-fx-background-color: transparent; " +
+                                            "-fx-text-fill: #2c3e50; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: none;"
+                            );
+                        }
+                    });
 
-                    // Selection Effect: Deep blue with stronger glow
+                    // Selection Effect: Deep blue with stronger glow, larger font size, and darker shadow
                     selectedProperty().addListener((obs, wasSelected, isSelected) -> {
                         if (isSelected) {
                             setStyle(
                                     "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
                                             "-fx-text-fill: white; " +
                                             "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
                                             "-fx-padding: 10px 14px; " +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,255,0.5), 10, 0, 0, 3);"
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
                             );
                         } else {
                             setStyle(
                                     "-fx-background-color: transparent; " +
                                             "-fx-text-fill: #2c3e50; " +
+                                            "-fx-font-size: 14px; " + // Reset to default font size
                                             "-fx-padding: 10px 14px; " +
                                             "-fx-effect: none;"
                             );
@@ -410,10 +487,10 @@ public class Main extends Application {
 
         // Customizing File ListView Appearance
         fileListView.setStyle(
-                "-fx-background-color: rgba(173, 216, 230, 0.1); " + // Light transparent background
-                        "-fx-border-color: rgba(0, 102, 204, 0.7); " + // Slightly transparent border
-                        "-fx-border-width: 0px;" +  // Removed border-radius effect
-                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,255,0.3), 12, 0, 0, 5);" // Glow effect for the listview
+                "-fx-background-color: rgba(173, 216, 230, 0.2); " + // Slightly transparent light blue background
+                        "-fx-border-color: transparent; " + // Remove border
+                        "-fx-padding: 0; " + // Remove padding
+                        "-fx-effect: none;" // Remove shadow effect
         );
 
         // Selection Handling
@@ -423,7 +500,6 @@ public class Main extends Application {
             }
         });
     }
-
 
 
     private void openFile(Stage stage) {
