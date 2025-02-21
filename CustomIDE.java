@@ -696,9 +696,55 @@ public class CustomIDE extends Application {
         codeArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 14px;");
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+
+        // Add key pressed event listener for auto-closing brackets
+        codeArea.setOnKeyTyped(event -> {
+            String typedChar = event.getCharacter();
+            if (typedChar.isEmpty()) return;
+
+            switch (typedChar.charAt(0)) {
+                case '(':
+                    handleAutoClosingBracket(codeArea, '(', ')');
+                    break;
+                case '{':
+                    handleAutoClosingBracket(codeArea, '{', '}');
+                    break;
+                case '[':
+                    handleAutoClosingBracket(codeArea, '[', ']');
+                    break;
+            }
+        });
+
         return codeArea;
     }
+    private void handleAutoClosingQuote(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+        String text = codeArea.getText();
 
+        // Check if the next character is already a closing quote
+        if (caretPosition < text.length() && text.charAt(caretPosition) == '"') {
+            // Move the caret forward
+            codeArea.moveTo(caretPosition + 1);
+        } else {
+            // Insert closing quote and move the caret back
+            codeArea.insertText(caretPosition, "\"");
+            codeArea.moveTo(caretPosition);
+        }
+    }
+    private void handleAutoClosingBracket(CodeArea codeArea, char openBracket, char closeBracket) {
+        int caretPosition = codeArea.getCaretPosition();
+        String text = codeArea.getText();
+
+        // Check if the next character is already a closing bracket
+        if (caretPosition < text.length() && text.charAt(caretPosition) == closeBracket) {
+            // Move the caret forward
+            codeArea.moveTo(caretPosition + 1);
+        } else {
+            // Insert closing bracket and move the caret back
+            codeArea.insertText(caretPosition, String.valueOf(closeBracket));
+            codeArea.moveTo(caretPosition);
+        }
+    }
     private SplitPane createSplitPane() {
         // Create output area for displaying results
         outputArea = new TextArea();
