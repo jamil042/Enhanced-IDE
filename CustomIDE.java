@@ -193,6 +193,11 @@ public class CustomIDE extends Application {
                 visualizationPane.getChildren().addAll(rect, varText);
                 variableBoxes.put(varName, rect);
                 variableTexts.put(varName, varText);
+
+                // If the variable is an array, string, or vector, visualize it as partitioned boxes
+                if (type.equals("string") || type.equals("int[]") || type.equals("vector")) {
+                    visualizeDataStructure(varName, value, type);
+                }
             }
         } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
             // Handle assignments
@@ -244,12 +249,128 @@ public class CustomIDE extends Application {
                 // Update variableTexts map
                 variableTexts.put(varName, newText);
             }
+        } else if (currentLine.matches("\\w+\\[\\d+\\]\\s*=\\s*[^;]+;")) {
+            // Handle array/vector index assignments (e.g., arr[2] = 10; or s[1] = 'a';)
+            String[] parts = currentLine.split("=");
+            String leftSide = parts[0].trim(); // e.g., "arr[2]"
+            String valueStr = parts[1].replace(";", "").trim(); // e.g., "10"
+
+            // Extract variable name and index
+            String varName = leftSide.split("\\[")[0]; // e.g., "arr"
+            int index = Integer.parseInt(leftSide.split("\\[")[1].replace("]", "")); // e.g., 2
+
+            // Evaluate the new value
+            Object value = evaluateExpression(valueStr, "int"); // Assuming int for simplicity
+
+            // Update the array/vector element
+            updateArrayElement(varName, index, value);
+
+            // Update visualization for the specific index
+            updateDataStructureVisualization(varName, index, value);
         } else if (currentLine.startsWith("cout")) {
             // Handle cout statements
             String output = evaluateCoutStatement(currentLine);
             Text outputText = new Text(10, 200, "Output: " + output);
             outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             visualizationPane.getChildren().add(outputText);
+        }
+    }
+
+    private void visualizeDataStructure(String varName, Object value, String type) {
+        // Clear previous visualization for this data structure
+        visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
+        visualizationPane.getChildren().removeIf(node -> node instanceof Text && node.getUserData() != null && node.getUserData().equals(varName));
+
+        // Position the data structure visualization closer to the variable name
+        double startX = 150; // Start X position for data structure visualization
+        double startY = 50 + (variables.size() - 1) * 40;
+
+        if (type.equals("string")) {
+            String strValue = (String) value;
+            for (int i = 0; i < strValue.length(); i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text charText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(strValue.charAt(i)));
+                charText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                charText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, charText, indexText);
+            }
+        } else if (type.equals("int[]")) {
+            int[] arrayValue = (int[]) value;
+            for (int i = 0; i < arrayValue.length; i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(arrayValue[i]));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                valueText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, valueText, indexText);
+            }
+        } else if (type.equals("vector")) {
+            List<?> vectorValue = (List<?>) value;
+            for (int i = 0; i < vectorValue.size(); i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(vectorValue.get(i)));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                valueText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, valueText, indexText);
+            }
+        }
+    }
+
+    private void updateDataStructureVisualization(String varName, int index, Object value) {
+        if (variables.containsKey(varName)) {
+            Object dataStructure = variables.get(varName);
+            if (dataStructure instanceof String) {
+                String strValue = (String) dataStructure;
+                if (index >= 0 && index < strValue.length()) {
+                    // Update the string value
+                    strValue = strValue.substring(0, index) + value + strValue.substring(index + 1);
+                    variables.put(varName, strValue);
+                    // Revisualize the string
+                    visualizeDataStructure(varName, strValue, "string");
+                }
+            } else if (dataStructure instanceof int[]) {
+                int[] arrayValue = (int[]) dataStructure;
+                if (index >= 0 && index < arrayValue.length) {
+                    // Update the array value
+                    arrayValue[index] = (int) value;
+                    // Revisualize the array
+                    visualizeDataStructure(varName, arrayValue, "int[]");
+                }
+            } else if (dataStructure instanceof List) {
+                List<?> vectorValue = (List<?>) dataStructure;
+                if (index >= 0 && index < vectorValue.size()) {
+                    // Update the vector value
+                    ((List<Object>) vectorValue).set(index, value);
+                    // Revisualize the vector
+                    visualizeDataStructure(varName, vectorValue, "vector");
+                }
+            }
         }
     }
 
@@ -379,10 +500,84 @@ public class CustomIDE extends Application {
         visualizationPane.getChildren().clear(); // Clear visualization pane
         updateVisualization();
     }
+    private void visualizeArray(String varName, Object value) {
+        if (value instanceof String) {
+            String strValue = (String) value;
+            int length = strValue.length();
+            for (int i = 0; i < length; i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
 
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text charText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(strValue.charAt(i)));
+                charText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, charText);
+            }
+        } else if (value instanceof int[]) {
+            int[] arrayValue = (int[]) value;
+            for (int i = 0; i < arrayValue.length; i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text valueText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(arrayValue[i]));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, valueText);
+            }
+        } else if (value instanceof List) {
+            List<?> listValue = (List<?>) value;
+            for (int i = 0; i < listValue.size(); i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text valueText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(listValue.get(i)));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, valueText);
+            }
+        }
+    }
+    private void updateArrayElement(String varName, int index, Object value) {
+        if (variables.containsKey(varName)) {
+            Object array = variables.get(varName);
+            if (array instanceof String) {
+                String strValue = (String) array;
+                if (index >= 0 && index < strValue.length()) {
+                    strValue = strValue.substring(0, index) + value + strValue.substring(index + 1);
+                    variables.put(varName, strValue);
+                }
+            } else if (array instanceof int[]) {
+                int[] arrayValue = (int[]) array;
+                if (index >= 0 && index < arrayValue.length) {
+                    arrayValue[index] = (int) value;
+                }
+            } else if (array instanceof List) {
+                List<?> listValue = (List<?>) array;
+                if (index >= 0 && index < listValue.size()) {
+                    ((List<Object>) listValue).set(index, value);
+                }
+            }
+            visualizeArray(varName, variables.get(varName));
+        }
+    }
     // Add this method to the "Visualize" button action
     private void startVisualization() {
         initializeCodeLines();
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            visualizeArray(entry.getKey(), entry.getValue());
+        }
     }
 
 
