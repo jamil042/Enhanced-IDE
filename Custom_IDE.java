@@ -36,7 +36,7 @@ import javafx.scene.control.TextArea;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Main extends Application {
+public class Custom_IDE extends Application {
 
     private CodeArea codeArea;
     private TextArea outputArea;
@@ -163,16 +163,22 @@ public class Main extends Application {
         Menu toolsMenu = new Menu("Tools");
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
+        MenuItem timeComplexity = new MenuItem("Time Complexity");
+        MenuItem spaceComplexity = new MenuItem("Space Complexity");
         MenuItem deleteCode = new MenuItem("Clear Code");
-        toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode);
+        toolsMenu.getItems().addAll(formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
 
         // Setting Menu
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
         MenuItem lightMode = new MenuItem("Light Mode");
         MenuItem darkMode = new MenuItem("Dark Mode");
+
+
         themeMenu.getItems().addAll(lightMode, darkMode);
-        settingMenu.getItems().add(themeMenu);
+        settingMenu.getItems().addAll(themeMenu);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -250,8 +256,167 @@ public class Main extends Application {
         return codeArea;
     }
 
+    private void calculateTimeComplexity() {
+        String code = codeArea.getText();
+        String timeComplexity = analyzeTimeComplexity(code);
+        outputArea.setText("Time Complexity: " + timeComplexity);
+    }
+    private String analyzeTimeComplexity(String code) {
+        String[] lines = code.split("\n");
+        int maxNestedLoops = 0;
+        boolean hasRecursion = false;
+        boolean hasLogarithmicLoop = false;
+        boolean hasLinearithmic = false;
+        boolean hasDifferentRanges = false;
 
+        for (String line : lines) {
+            line = line.trim();
 
+            // Check for loops
+            if (line.startsWith("for") || line.startsWith("while")) {
+                maxNestedLoops++;
+
+                // Check for logarithmic loops (e.g., i *= 2 or i /= 2)
+                if (line.contains("*=") || line.contains("/=")) {
+                    hasLogarithmicLoop = true;
+                }
+
+                // Check for different ranges in nested loops
+                if (line.contains("i < n") && line.contains("j < m")) {
+                    hasDifferentRanges = true;
+                }
+            }
+
+            // Check for recursion
+            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+                hasRecursion = true;
+            }
+
+            // Check for divide-and-conquer algorithms (e.g., merge sort, quicksort)
+            if (line.contains("mergeSort(") || line.contains("quickSort(")) {
+                hasLinearithmic = true;
+            }
+        }
+
+        // Determine the time complexity based on the analysis
+        if (maxNestedLoops == 0 && !hasRecursion) {
+            return "O(1)"; // Constant time
+        } else if (maxNestedLoops == 1 && !hasRecursion) {
+            if (hasLogarithmicLoop) {
+                return "O(log n)"; // Logarithmic time
+            } else {
+                return "O(n)"; // Linear time
+            }
+        } else if (maxNestedLoops == 2 && !hasRecursion) {
+            if (hasDifferentRanges) {
+                return "O(n * m)"; // Different ranges
+            } else {
+                return "O(n^2)"; // Quadratic time
+            }
+        } else if (hasLinearithmic) {
+            return "O(n log n)"; // Linearithmic time
+        } else if (hasRecursion) {
+            return "O(2^n)"; // Exponential time (for simplicity)
+        } else {
+            return "O(n^k)"; // Polynomial time (k = maxNestedLoops)
+        }
+    }
+    private void calculateSpaceComplexity() {
+        String code = codeArea.getText();
+        String spaceComplexity = analyzeSpaceComplexity(code);
+        outputArea.setText("Space Complexity: " + spaceComplexity);
+    }
+
+    private String analyzeSpaceComplexity(String code) {
+        String[] lines = code.split("\n");
+
+        int variableCount = 0;
+        int arraySize = 0;
+        int matrixSize = 0;
+        int recursiveDepth = 0;
+        boolean hasDynamicAllocation = false;
+        boolean hasQueue = false;
+        boolean hasStack = false;
+        boolean hasLinkedList = false;
+        boolean hasVector = false;
+        boolean has2DVector = false;
+
+        for (String line : lines) {
+            line = line.trim();
+
+            // Count variables
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*;")) {
+                variableCount++;
+            }
+
+            // Count array sizes
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+                String sizeStr = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\].*", "$1");
+                if (sizeStr.matches("\\d+")) {
+                    arraySize += Integer.parseInt(sizeStr);
+                } else {
+                    arraySize += 1; // Assume dynamic size
+                }
+            }
+
+            // Count matrix sizes
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+                String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
+                if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
+                    matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
+                } else {
+                    matrixSize += 1; // Assume dynamic size
+                }
+            }
+
+            // Check for 2D vectors
+            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*;")) {
+                has2DVector = true;
+            }
+
+            // Check for 1D vectors
+            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*;")) {
+                hasVector = true;
+            }
+
+            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*;")) {
+                hasQueue = true;
+            }
+            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*;")) {
+                hasStack = true;
+            }
+            if (line.matches("list\\s*<.*>\\s*\\w+\\s*;")) {
+                hasLinkedList = true;
+            }
+
+            // Count recursive depth
+            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+                recursiveDepth++;
+            }
+
+            // Check for dynamic memory allocation
+            if (line.contains("new") || line.contains("malloc") || line.contains("calloc")) {
+                hasDynamicAllocation = true;
+            }
+        }
+
+        // Determine the space complexity based on the analysis
+        if (variableCount == 0 && arraySize == 0 && matrixSize == 0 && recursiveDepth == 0 && !hasDynamicAllocation && !hasVector && !has2DVector) {
+            return "O(1)"; // Constant space
+        } else if (matrixSize > 0 || has2DVector) {
+            return "O(n^2)"; // Quadratic space (due to matrices or 2D vectors)
+        } else if (arraySize > 0 || hasVector) {
+            return "O(n)"; // Linear space (due to arrays or 1D vectors)
+        } else if (hasVector || hasQueue || hasStack || hasLinkedList) {
+            return "O(n)"; // Linear space (due to data structures)
+        } else if (recursiveDepth > 0) {
+            return "O(n)"; // Linear space (due to recursion)
+        } else if (hasDynamicAllocation) {
+            return "O(n)"; // Linear space (due to dynamic memory allocation)
+        } else {
+            return "O(1)"; // Default to constant space
+        }
+    }
     private SplitPane createSplitPane() {
         // Create output area
         outputArea = new TextArea();
