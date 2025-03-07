@@ -1,40 +1,49 @@
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.geometry.Pos;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.control.*;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.layout.Pane;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
+import java.io.*;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.geometry.Pos;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Alert;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-import java.io.*;
-import java.util.*;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import java.util.Optional;
 import javafx.scene.control.TextArea;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Custom_IDE extends Application {
 
@@ -43,7 +52,18 @@ public class Custom_IDE extends Application {
     private TextArea inputArea;
     private ListView<String> fileListView;
     private String currentFileName = "Untitled1";
+    private int currentLineIndex = 0;
+    private List<String> codeLines = new ArrayList<>();
+    private Pane visualizationPane;
+    private Label currentLineLabel;
+    private SplitPane mainSplitPane; // Only declare once
+    private boolean isVisualizationVisible = false;
+    private VBox visualizationWorkarea; // Only declare once
+    private Map<String, Object> variables = new HashMap<>();
+    private Map<String, Rectangle> variableBoxes = new HashMap<>();
+    private Map<String, Text> variableTexts = new HashMap<>();
     private Map<String, String> fileContentMap = new HashMap<>();
+
 
     @Override
     public void start(Stage primaryStage) {
@@ -61,8 +81,8 @@ public class Custom_IDE extends Application {
         splashStage.setScene(splashScene);
 
         centerStageOnScreen(splashStage);
-
         splashStage.show();
+
         new Thread(() -> {
             try {
                 Thread.sleep(3000);
@@ -74,7 +94,6 @@ public class Custom_IDE extends Application {
                 BorderPane root = new BorderPane();
                 MenuBar menuBar = createMenuBar(primaryStage);
                 codeArea = createCodeArea();
-
 
                 // Create the "Files" label
                 Label filesLabel = new Label("File Section");
@@ -107,16 +126,28 @@ public class Custom_IDE extends Application {
                 filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
                 leftPane.setFillWidth(true);
 
-
+                // Create the center split pane (code area, input, output)
                 SplitPane centerSplitPane = createSplitPane();
-                SplitPane mainSplitPane = new SplitPane();
+
+                // Initialize the main split pane (left, center, and visualization)
+                mainSplitPane = new SplitPane();
                 mainSplitPane.setOrientation(Orientation.HORIZONTAL);
+
+                // Add left and center panes initially (visualization pane will be added dynamically)
                 mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
+
+                // Set initial divider position (left pane takes 2%, center takes 98%)
                 mainSplitPane.setDividerPositions(0.02);
+
+                // Create the visualization work area (but don't add it yet)
+                visualizationWorkarea = createVisualizationWorkarea();
+
+                // Set up the root layout
                 root.setTop(menuBar);
                 root.setCenter(mainSplitPane);
-                Image Icon = new Image(getClass().getResourceAsStream("Project Logo.jpg"));
 
+                // Set up the stage
+                Image Icon = new Image(getClass().getResourceAsStream("Project Logo.jpg"));
                 Scene scene = new Scene(root, 800, 600);
                 primaryStage.setMaximized(true);
                 primaryStage.setScene(scene);
@@ -133,6 +164,966 @@ public class Custom_IDE extends Application {
         stage.setX(centerX);
         stage.setY(centerY);
     }
+
+    private VBox createVisualizationWorkarea() {
+        VBox visualizationBox = new VBox(10);
+        visualizationBox.setPadding(new javafx.geometry.Insets(10));
+
+        // Label to display the current line of code
+        currentLineLabel = new Label("Current Line: ");
+        currentLineLabel.setFont(Font.font(14));
+
+        // Pane for visualization
+        visualizationPane = new Pane();
+        visualizationPane.setPrefSize(1000, 500);
+        visualizationPane.setStyle("-fx-background-color: #f0f0f0;");
+
+        // Buttons for navigation
+        Button nextButton = new Button("Next");
+        Button prevButton = new Button("Previous");
+
+        nextButton.setOnAction(e -> visualizeNextLine());
+        prevButton.setOnAction(e -> visualizePreviousLine());
+
+        HBox buttonBox = new HBox(10, prevButton, nextButton);
+
+        // Add components to the visualization box
+        visualizationBox.getChildren().addAll(currentLineLabel, visualizationPane, buttonBox);
+
+        return visualizationBox;
+    }
+
+    private void toggleVisualization() {
+        isVisualizationVisible = !isVisualizationVisible;
+
+        if (isVisualizationVisible) {
+            // Add visualization pane if not already added
+            if (!mainSplitPane.getItems().contains(visualizationWorkarea)) {
+                mainSplitPane.getItems().add(visualizationWorkarea);
+            }
+            // Set divider positions: left 2%, center+visualization 98%
+            mainSplitPane.setDividerPositions(0.02, 0.7);
+            startVisualization();
+        } else {
+            // Remove visualization pane and reset divider
+            mainSplitPane.getItems().remove(visualizationWorkarea);
+            mainSplitPane.setDividerPositions(0.02);
+        }
+    }
+
+    private void visualizeNextLine() {
+        if (currentLineIndex < codeLines.size() - 1) {
+            currentLineIndex++;
+            updateVisualization();
+        }
+    }
+
+    private void visualizePreviousLine() {
+        if (currentLineIndex > 0) {
+            currentLineIndex--;
+            updateVisualization();
+        }
+    }
+
+    private void updateVisualization() {
+        // Update the current line label
+        currentLineLabel.setText("Current Line: " + codeLines.get(currentLineIndex));
+
+        // Highlight the current line in the code area
+        codeArea.moveTo(currentLineIndex, 0);
+        codeArea.requestFollowCaret();
+
+        // Parse and visualize the current line
+        String currentLine = codeLines.get(currentLineIndex).trim();
+
+        // Handle variable declarations and assignments
+        if (currentLine.matches("(int|float|double|string|char|bool|short)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
+            // Extract variable name and value
+            String[] parts = currentLine.split("=|;");
+            String declaration = parts[0].trim();
+            String[] declParts = declaration.split("\\s+");
+            String type = declParts[0];
+            String varName = declParts[1];
+
+            Object value = null;
+            if (parts.length > 1) {
+                value = evaluateExpression(parts[1].replace(";", "").trim(), type);
+            } else {
+                // Assign default values for char, string, bool, and short
+                if (type.equals("char")) {
+                    value = '\0';  // Default null character
+                } else if (type.equals("string")) {
+                    value = "null"; // Default empty string
+                } else if (type.equals("bool")) {
+                    value = false; // Default false
+                } else if (type.equals("short")) {
+                    value = (short) 0; // Default short value
+                }
+            }
+
+            // Update variables map
+            variables.put(varName, value);
+
+            // Draw variable box
+            if (variableBoxes.containsKey(varName)) {
+                variableTexts.get(varName).setText(varName + " = " + value); // Update text directly
+            } else {
+                // **New variable: Create UI elements**
+                Rectangle rect = new Rectangle(10, 50 + (variables.size() - 1) * 40, 100, 30);
+                rect.setFill(Color.LIGHTBLUE);
+                rect.setStroke(Color.BLACK);
+
+                Text varText = new Text(15, 70 + (variables.size() - 1) * 40, varName + " = " + value);
+                varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, varText);
+                variableBoxes.put(varName, rect);
+                variableTexts.put(varName, varText);
+
+                // If the variable is an array, string, or vector, visualize it as partitioned boxes
+                if (type.equals("string") || type.equals("int[]") || type.equals("vector")) {
+                    visualizeDataStructure(varName, value, type);
+                }
+            }
+        } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
+            // Handle assignments
+            String[] parts = currentLine.split("=");
+            String varName = parts[0].trim();
+            String valueStr = parts[1].replace(";", "").trim();
+
+            // Determine the type of the variable
+            String type = "int"; // Default type
+            if (variables.containsKey(varName)) {
+                Object currentValue = variables.get(varName);
+                if (currentValue instanceof Double) {
+                    type = "double";
+                } else if (currentValue instanceof Float) {
+                    type = "float";
+                } else if (currentValue instanceof String) {
+                    type = "string";
+                } else if (currentValue instanceof Character) {
+                    type = "char";
+                } else if (currentValue instanceof Boolean) {
+                    type = "bool";
+                } else if (currentValue instanceof Short) {
+                    type = "short";
+                }
+            }
+
+            // Evaluate the value
+            Object value;
+            if (type.equals("char") && valueStr.matches("'.'")) {
+                value = valueStr.charAt(1); // Extract the character inside single quotes
+            } else {
+                value = evaluateExpression(valueStr, type);
+            }
+
+            // Update variable value
+            variables.put(varName, value);
+
+            // Update visualization
+            if (variableBoxes.containsKey(varName)) {
+                // Remove old text
+                Text oldText = variableTexts.get(varName);
+                visualizationPane.getChildren().remove(oldText);
+
+                // Add new text
+                Text newText = new Text(oldText.getX(), oldText.getY(), varName + " = " + value);
+                newText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                visualizationPane.getChildren().add(newText);
+
+                // Update variableTexts map
+                variableTexts.put(varName, newText);
+            }
+        } else if (currentLine.matches("\\w+\\[\\d+\\]\\s*=\\s*[^;]+;")) {
+            // Handle array/vector index assignments (e.g., arr[2] = 10; or s[1] = 'a';)
+            String[] parts = currentLine.split("=");
+            String leftSide = parts[0].trim(); // e.g., "arr[2]"
+            String valueStr = parts[1].replace(";", "").trim(); // e.g., "10"
+
+            // Extract variable name and index
+            String varName = leftSide.split("\\[")[0]; // e.g., "arr"
+            int index = Integer.parseInt(leftSide.split("\\[")[1].replace("]", "")); // e.g., 2
+
+            // Evaluate the new value
+            Object value = evaluateExpression(valueStr, "int"); // Assuming int for simplicity
+
+            // Update the array/vector element
+            updateArrayElement(varName, index, value);
+
+            // Update visualization for the specific index
+            updateDataStructureVisualization(varName, index, value);
+        } else if (currentLine.startsWith("cout")) {
+            // Handle cout statements
+            String output = evaluateCoutStatement(currentLine);
+            Text outputText = new Text(10, 200, "Output: " + output);
+            outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+            visualizationPane.getChildren().add(outputText);
+        }
+        else if (currentLine.startsWith("if") || currentLine.startsWith("else if") || currentLine.startsWith("else")) {
+            // Handle conditional statements
+            handleConditionalStatement(currentLine);
+        }
+        else if (currentLine.startsWith("for")) {
+            // Handle for loops
+            handleForLoop(currentLine);
+        }
+        else if (currentLine.startsWith("while")) {
+            // Handle while loops
+            handleWhileLoop(currentLine);
+        }
+        else if (currentLine.startsWith("do")) {
+            // Handle do-while loops
+            handleDoWhileLoop(currentLine);
+        }
+        else if (currentLine.startsWith("switch")) {
+            // Handle switch-case statements
+            handleSwitchCase(currentLine);
+        }
+        else if (currentLine.startsWith("int main")) {
+            // Handle main function
+            handleMainFunction(currentLine);
+        }
+        else if (currentLine.startsWith("#include")) {
+            // Handle library inclusions
+            handleLibraryInclusion(currentLine);
+        }
+        else if (currentLine.startsWith("return")) {
+            // Handle return statements
+            handleReturnStatement(currentLine);
+        }
+        else if (currentLine.startsWith("break")) {
+            // Handle break statements
+            handleBreakStatement();
+        }
+        else if (currentLine.startsWith("continue")) {
+            // Handle continue statements
+            handleContinueStatement();
+        }
+        else if (currentLine.startsWith("void")) {
+            // Handle void functions
+            handleVoidFunction(currentLine);
+        }
+        else if (currentLine.startsWith("class")) {
+            // Handle class definitions
+            handleClassDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("struct")) {
+            // Handle struct definitions
+            handleStructDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("typedef")) {
+            // Handle type definitions
+            handleTypeDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("enum")) {
+            // Handle enum definitions
+            handleEnumDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("namespace")) {
+            // Handle namespace definitions
+            handleNamespaceDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("using")) {
+            // Handle using directives
+            handleUsingDirective(currentLine);
+        }
+        else if (currentLine.startsWith("template")) {
+            // Handle template definitions
+            handleTemplateDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("friend")) {
+            // Handle friend declarations
+            handleFriendDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("extern")) {
+            // Handle extern declarations
+            handleExternDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("static")) {
+            // Handle static declarations
+            handleStaticDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("const")) {
+            // Handle constant declarations
+            handleConstantDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("volatile")) {
+            // Handle volatile declarations
+            handleVolatileDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("register")) {
+            // Handle register declarations
+            handleRegisterDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("auto")) {
+            // Handle auto declarations
+            handleAutoDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("typedef")) {
+            // Handle typedef declarations
+            handleTypedefDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("asm")) {
+            // Handle assembly code
+            handleAssemblyCode(currentLine);
+        }
+        else if (currentLine.startsWith("goto")) {
+            // Handle goto statements
+            handleGotoStatement(currentLine);
+        }
+        else if (currentLine.startsWith("try")) {
+            // Handle try-catch blocks
+            handleTryCatchBlock(currentLine);
+        }
+        else if (currentLine.startsWith("throw")) {
+            // Handle throw statements
+            handleThrowStatement(currentLine);
+        }
+        else if (currentLine.startsWith("catch")) {
+            // Handle catch blocks
+            handleCatchBlock(currentLine);
+        }
+        else if (currentLine.startsWith("finally")) {
+            // Handle finally blocks
+            handleFinallyBlock(currentLine);
+        }
+        else if (currentLine.startsWith("new")) {
+            // Handle dynamic memory allocation
+            handleDynamicMemoryAllocation(currentLine);
+        }
+        else if (currentLine.startsWith("delete")) {
+            // Handle dynamic memory deallocation
+            handleDynamicMemoryDeallocation(currentLine);
+        }
+        else if (currentLine.startsWith("sizeof")) {
+            // Handle sizeof operator
+            handleSizeofOperator(currentLine);
+        }
+        else if (currentLine.startsWith("typeid")) {
+            // Handle typeid operator
+            handleTypeidOperator(currentLine);
+        }
+        else if (currentLine.startsWith("alignas")) {
+            // Handle alignas specifier
+            handleAlignasSpecifier(currentLine);
+        }
+        else if (currentLine.startsWith("alignof")) {
+            // Handle alignof operator
+            handleAlignofOperator(currentLine);
+        }
+        else if (currentLine.startsWith("and")) {
+            // Handle logical AND operator
+            handleLogicalAndOperator(currentLine);
+        }
+    }
+
+    private void handleConditionalStatement(String currentLine) {
+        System.out.println("Handling conditional statement: " + currentLine); // Debug statement
+
+        if (currentLine.startsWith("if") || currentLine.startsWith("else if")) {
+            String condition = currentLine.substring(currentLine.indexOf('(') + 1, currentLine.lastIndexOf(')')).trim();
+            System.out.println("Evaluating condition: " + condition);
+
+            if (evaluateCondition(condition)) {
+                System.out.println("Condition is true. Visualizing block...");
+                visualizeBlock();
+                skipToEndOfConditional(); // Skip remaining else-if and else blocks
+            } else {
+                System.out.println("Condition is false. Skipping block...");
+                skipToNextCondition();
+            }
+        } else if (currentLine.startsWith("else")) {
+            System.out.println("Visualizing else block...");
+            visualizeBlock();
+        }
+    }
+
+
+    private boolean evaluateCondition(String condition) {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("JavaScript");
+
+        // Pass variables to the engine
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            engine.put(entry.getKey(), entry.getValue());
+        }
+
+        try {
+            // Evaluate the condition
+            Object result = engine.eval(condition);
+            System.out.println("Condition: " + condition + " | Result: " + result); // Debug statement
+
+            if (result instanceof Boolean) {
+                return (Boolean) result;
+            } else {
+                throw new ScriptException("Condition did not evaluate to a boolean value.");
+            }
+        } catch (ScriptException e) {
+            showError("Evaluation Error", "Failed to evaluate condition: " + condition + "\n" + e.getMessage());
+            return false;
+        }
+    }
+
+    private void visualizeBlock() {
+        currentLineIndex++;
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Handle opening and closing braces
+            if (line.equals("{")) {
+                openBraces++;
+            } else if (line.equals("}")) {
+                if (openBraces == 0) {
+                    break; // End of block
+                }
+                openBraces--;
+            }
+
+            // Visualize the current line
+            updateVisualization();
+            currentLineIndex++;
+        }
+    }
+    private void skipToEndOfConditional() {
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Check for the end of the conditional statement
+            if (line.equals("}") && openBraces == 0) {
+                break;
+            }
+
+            // Handle nested blocks
+            if (line.contains("{")) {
+                openBraces++;
+            }
+            if (line.contains("}")) {
+                openBraces--;
+            }
+
+            currentLineIndex++;
+        }
+    }
+    private void skipToNextCondition() {
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Check for the start of a new condition or the end of the conditional statement
+            if (line.startsWith("else if") || line.startsWith("else") || (line.equals("}") && openBraces == 0)) {
+                break;
+            }
+
+            // Handle nested blocks
+            if (line.contains("{")) {
+                openBraces++;
+            }
+            if (line.contains("}")) {
+                openBraces--;
+            }
+
+            currentLineIndex++;
+        }
+    }
+    private void handleForLoop(String currentLine) {
+        // Extract the initialization, condition, and update parts of the for loop
+        String forContent = currentLine.substring(currentLine.indexOf('(') + 1, currentLine.lastIndexOf(')')).trim();
+        String[] parts = forContent.split(";");
+        String initialization = parts[0].trim();
+        String condition = parts[1].trim();
+        String update = parts[2].trim();
+
+        // Execute the initialization part
+        evaluateExpression(initialization, "int");
+
+        // Create a visualization box for the for loop
+        Rectangle loopBox = new Rectangle(10, 50 + (variables.size() - 1) * 40, 300, 200);
+        loopBox.setFill(Color.LIGHTGRAY);
+        loopBox.setStroke(Color.BLACK);
+        visualizationPane.getChildren().add(loopBox);
+
+        // Iterate through the loop and update the visualization
+        while (evaluateCondition(condition)) {
+            // Update the visualization with the current values of the loop variables
+            updateVisualization();
+
+            // Execute the update part
+            evaluateExpression(update, "int");
+        }
+    }
+
+    private void handleWhileLoop(String currentLine) {
+        // Implementation for handling while loops
+    }
+
+    private void handleDoWhileLoop(String currentLine) {
+        // Implementation for handling do-while loops
+    }
+
+    private void handleSwitchCase(String currentLine) {
+        // Implementation for handling switch-case statements
+    }
+
+    private void handleMainFunction(String currentLine) {
+        // Implementation for handling main function
+    }
+
+    private void handleLibraryInclusion(String currentLine) {
+        // Implementation for handling #include statements
+    }
+
+    private void handleReturnStatement(String currentLine) {
+        // Implementation for handling return statements
+    }
+
+    private void handleBreakStatement() {
+        // Implementation for handling break statements
+    }
+
+    private void handleContinueStatement() {
+        // Implementation for handling continue statements
+    }
+
+    private void handleVoidFunction(String currentLine) {
+        // Implementation for handling void functions
+    }
+
+    private void handleClassDefinition(String currentLine) {
+        // Implementation for handling class definitions
+    }
+
+    private void handleStructDefinition(String currentLine) {
+        // Implementation for handling struct definitions
+    }
+
+    private void handleTypeDefinition(String currentLine) {
+        // Implementation for handling type definitions
+    }
+
+    private void handleEnumDefinition(String currentLine) {
+        // Implementation for handling enum definitions
+    }
+
+    private void handleSizeofOperator(String currentLine) {
+        // Implementation for handling sizeof operator
+    }
+
+    private void handleNamespaceDefinition(String currentLine) {
+        // Implementation for handling namespace definitions
+    }
+
+    private void handleUsingDirective(String currentLine) {
+        // Implementation for handling using directives
+    }
+
+    private void handleTemplateDefinition(String currentLine) {
+        // Implementation for handling template definitions
+    }
+
+    private void handleFriendDeclaration(String currentLine) {
+        // Implementation for handling friend declarations
+    }
+
+    private void handleExternDeclaration(String currentLine) {
+        // Implementation for handling extern declarations
+    }
+
+    private void handleStaticDeclaration(String currentLine) {
+        // Implementation for handling static declarations
+    }
+
+    private void handleConstantDeclaration(String currentLine) {
+        // Implementation for handling constant declarations
+    }
+
+    private void handleVolatileDeclaration(String currentLine) {
+        // Implementation for handling volatile declarations
+    }
+
+    private void handleRegisterDeclaration(String currentLine) {
+        // Implementation for handling register declarations
+    }
+
+    private void handleAutoDeclaration(String currentLine) {
+        // Implementation for handling auto declarations
+    }
+
+    private void handleTypedefDeclaration(String currentLine) {
+        // Implementation for handling typedef declarations
+    }
+
+    private void handleAssemblyCode(String currentLine) {
+        // Implementation for handling assembly code
+    }
+
+    private void handleGotoStatement(String currentLine) {
+        // Implementation for handling goto statements
+    }
+
+    private void handleTryCatchBlock(String currentLine) {
+        // Implementation for handling try-catch blocks
+    }
+
+    private void handleThrowStatement(String currentLine) {
+        // Implementation for handling throw statements
+    }
+
+    private void handleCatchBlock(String currentLine) {
+        // Implementation for handling catch blocks
+    }
+
+    private void handleFinallyBlock(String currentLine) {
+        // Implementation for handling finally blocks
+    }
+
+    private void handleDynamicMemoryAllocation(String currentLine) {
+        // Implementation for handling dynamic memory allocation
+    }
+
+    private void handleDynamicMemoryDeallocation(String currentLine) {
+        // Implementation for handling dynamic memory deallocation
+    }
+
+    private void handleTypeidOperator(String currentLine) {
+        // Implementation for handling typeid operator
+    }
+
+    private void handleAlignasSpecifier(String currentLine) {
+        // Implementation for handling alignas specifier
+    }
+
+    private void handleAlignofOperator(String currentLine) {
+        // Implementation for handling alignof operator
+    }
+
+    private void handleLogicalAndOperator(String currentLine) {
+        // Implementation for handling logical AND operator
+    }
+    private void visualizeDataStructure(String varName, Object value, String type) {
+        // Clear previous visualization for this data structure
+        visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
+        visualizationPane.getChildren().removeIf(node -> node instanceof Text && node.getUserData() != null && node.getUserData().equals(varName));
+
+        // Position the data structure visualization closer to the variable name
+        double startX = 150; // Start X position for data structure visualization
+        double startY = 50 + (variables.size() - 1) * 40;
+
+        if (type.equals("string")) {
+            String strValue = (String) value;
+            for (int i = 0; i < strValue.length(); i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text charText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(strValue.charAt(i)));
+                charText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                charText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, charText, indexText);
+            }
+        } else if (type.equals("int[]")) {
+            int[] arrayValue = (int[]) value;
+            for (int i = 0; i < arrayValue.length; i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(arrayValue[i]));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                valueText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, valueText, indexText);
+            }
+        } else if (type.equals("vector")) {
+            List<?> vectorValue = (List<?>) value;
+            for (int i = 0; i < vectorValue.size(); i++) {
+                Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+                rect.setUserData(varName); // Tag the rectangle with the variable name
+
+                Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(vectorValue.get(i)));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                valueText.setUserData(varName); // Tag the text with the variable name
+
+                Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+                indexText.setUserData(varName); // Tag the text with the variable name
+
+                visualizationPane.getChildren().addAll(rect, valueText, indexText);
+            }
+        }
+    }
+
+    private void updateDataStructureVisualization(String varName, int index, Object value) {
+        if (variables.containsKey(varName)) {
+            Object dataStructure = variables.get(varName);
+            if (dataStructure instanceof String) {
+                String strValue = (String) dataStructure;
+                if (index >= 0 && index < strValue.length()) {
+                    // Update the string value
+                    strValue = strValue.substring(0, index) + value + strValue.substring(index + 1);
+                    variables.put(varName, strValue);
+                    // Revisualize the string
+                    visualizeDataStructure(varName, strValue, "string");
+                }
+            } else if (dataStructure instanceof int[]) {
+                int[] arrayValue = (int[]) dataStructure;
+                if (index >= 0 && index < arrayValue.length) {
+                    // Update the array value
+                    arrayValue[index] = (int) value;
+                    // Revisualize the array
+                    visualizeDataStructure(varName, arrayValue, "int[]");
+                }
+            } else if (dataStructure instanceof List) {
+                List<?> vectorValue = (List<?>) dataStructure;
+                if (index >= 0 && index < vectorValue.size()) {
+                    // Update the vector value
+                    ((List<Object>) vectorValue).set(index, value);
+                    // Revisualize the vector
+                    visualizeDataStructure(varName, vectorValue, "vector");
+                }
+            }
+        }
+    }
+
+    private Object evaluateExpression(String expression, String type) {
+        expression = expression.trim();
+
+        if (type.equals("char") && expression.matches("'.'")) {
+            return expression.charAt(1);
+        }
+        if (type.equals("string") && expression.startsWith("\"") && expression.endsWith("\"")) {
+            return expression.substring(1, expression.length() - 1);
+        }
+        if (type.equals("bool")) {
+            return Boolean.parseBoolean(expression);
+        }
+        if (type.equals("short")) {
+            return Short.parseShort(expression);
+        }
+
+        if (variables.containsKey(expression)) {
+            return variables.get(expression);
+        }
+
+        try {
+            switch (type) {
+                case "int":
+                    return Integer.parseInt(expression);
+                case "double":
+                    return Double.parseDouble(expression);
+                case "float":
+                    return Float.parseFloat(expression);
+                default:
+                    return evaluateArithmeticExpression(expression);
+            }
+        } catch (NumberFormatException ignored) {}
+
+        return evaluateArithmeticExpression(expression);
+    }
+    private Object evaluateArithmeticExpression(String expression) {
+        List<String> postfix = infixToPostfix(expression);
+        Stack<Number> stack = new Stack<>();
+
+        for (String token : postfix) {
+            if (token.matches("\\d+")) {  // Integer case
+                stack.push(Integer.parseInt(token));
+            } else if (token.matches("\\d+\\.\\d+")) {  // Double case
+                stack.push(Double.parseDouble(token));
+            } else if (variables.containsKey(token)) {
+                stack.push((Number) variables.get(token));
+            }
+            else if (token.matches("\\+\\+\\w+|\\w+\\+\\+|--\\w+|\\w+--")) {
+                String varName = token.replaceAll("\\+\\+|--", "");
+                if (variables.containsKey(varName)) {
+                    int value = (int) variables.get(varName);
+                    if (token.startsWith("++") || token.endsWith("++")) {
+                        value++;
+                    } else if (token.startsWith("--") || token.endsWith("--")) {
+                        value--;
+                    }
+                    variables.put(varName, value);
+                    stack.push(value);
+                }
+            }
+            else {
+                Number b = stack.pop();
+                Number a = stack.pop();
+
+                if (a instanceof Integer && b instanceof Integer) {
+                    switch (token) {
+                        case "+": stack.push(a.intValue() + b.intValue()); break;
+                        case "-": stack.push(a.intValue() - b.intValue()); break;
+                        case "*": stack.push(a.intValue() * b.intValue()); break;
+                        case "/": stack.push(a.intValue() / b.intValue()); break;
+                        case "%": stack.push(a.intValue() % b.intValue()); break;
+
+                    }
+                } else { // At least one operand is a Double
+                    double aVal = a.doubleValue();
+                    double bVal = b.doubleValue();
+                    double result=0;
+                    switch (token) {
+                        case "+": result=(aVal + bVal); break;
+                        case "-": result=(aVal - bVal); break;
+                        case "*": result=(aVal * bVal); break;
+                        case "/": result=(aVal / bVal); break;
+                        case "%": result=(aVal % bVal); break;
+                    }
+                    stack.push(result);
+                }
+            }
+        }
+        return stack.pop();
+    }
+
+
+    private List<String> infixToPostfix(String expression) {
+        List<String> output = new ArrayList<>();
+        Stack<String> operators = new Stack<>();
+        Map<String, Integer> precedence = Map.of("+", 1, "-", 1, "*", 2, "/", 2);
+
+        StringTokenizer tokenizer = new StringTokenizer(expression, "+-*/()", true);
+        while (tokenizer.hasMoreTokens()) {
+            String token = tokenizer.nextToken().trim();
+            if (token.isEmpty()) continue;
+
+            if (token.matches("\\d+(\\.\\d+)?") || variables.containsKey(token)) {
+                output.add(token);
+            } else if (token.equals("(")) {
+                operators.push(token);
+            } else if (token.equals(")")) {
+                while (!operators.isEmpty() && !operators.peek().equals("(")) {
+                    output.add(operators.pop());
+                }
+                operators.pop();
+            } else {
+                while (!operators.isEmpty() && precedence.getOrDefault(operators.peek(), 0) >= precedence.get(token)) {
+                    output.add(operators.pop());
+                }
+                operators.push(token);
+            }
+        }
+        while (!operators.isEmpty()) {
+            output.add(operators.pop());
+        }
+        return output;
+    }
+
+
+
+    private String evaluateCoutStatement(String coutLine) {
+        // Extract the expression inside cout
+        String expression = coutLine.replace("cout", "").replace("<<", "").replace(";", "").trim();
+        return String.valueOf(evaluateExpression(expression, "int"));
+    }
+
+    private void initializeCodeLines() {
+        String code = codeArea.getText();
+        codeLines = Arrays.asList(code.split("\n"));
+        currentLineIndex = 0;
+        variables.clear(); // Reset variables
+        variableBoxes.clear(); // Reset variable boxes
+        variableTexts.clear(); // Reset variable texts
+        visualizationPane.getChildren().clear(); // Clear visualization pane
+        updateVisualization();
+    }
+    private void visualizeArray(String varName, Object value) {
+        if (value instanceof String) {
+            String strValue = (String) value;
+            int length = strValue.length();
+            for (int i = 0; i < length; i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text charText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(strValue.charAt(i)));
+                charText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, charText);
+            }
+        } else if (value instanceof int[]) {
+            int[] arrayValue = (int[]) value;
+            for (int i = 0; i < arrayValue.length; i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text valueText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(arrayValue[i]));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, valueText);
+            }
+        } else if (value instanceof List) {
+            List<?> listValue = (List<?>) value;
+            for (int i = 0; i < listValue.size(); i++) {
+                Rectangle rect = new Rectangle(10 + i * 40, 50 + (variables.size() - 1) * 40, 30, 30);
+                rect.setFill(Color.LIGHTGREEN);
+                rect.setStroke(Color.BLACK);
+
+                Text indexText = new Text(15 + i * 40, 70 + (variables.size() - 1) * 40, String.valueOf(i));
+                indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+                Text valueText = new Text(20 + i * 40, 90 + (variables.size() - 1) * 40, String.valueOf(listValue.get(i)));
+                valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+                visualizationPane.getChildren().addAll(rect, indexText, valueText);
+            }
+        }
+    }
+    private void updateArrayElement(String varName, int index, Object value) {
+        if (variables.containsKey(varName)) {
+            Object array = variables.get(varName);
+            if (array instanceof String) {
+                String strValue = (String) array;
+                if (index >= 0 && index < strValue.length()) {
+                    strValue = strValue.substring(0, index) + value + strValue.substring(index + 1);
+                    variables.put(varName, strValue);
+                }
+            } else if (array instanceof int[]) {
+                int[] arrayValue = (int[]) array;
+                if (index >= 0 && index < arrayValue.length) {
+                    arrayValue[index] = (int) value;
+                }
+            } else if (array instanceof List) {
+                List<?> listValue = (List<?>) array;
+                if (index >= 0 && index < listValue.size()) {
+                    ((List<Object>) listValue).set(index, value);
+                }
+            }
+            visualizeArray(varName, variables.get(varName));
+        }
+    }
+    // Add this method to the "Visualize" button action
+    private void startVisualization() {
+        initializeCodeLines();
+        currentLineIndex = 0;
+        updateVisualization();
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            visualizeArray(entry.getKey(), entry.getValue());
+        }
+    }
+
 
 
     private MenuBar createMenuBar(Stage primaryStage) {
@@ -152,7 +1143,9 @@ public class Custom_IDE extends Application {
         // Run Menu
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
-        runMenu.getItems().add(runCode);
+
+        runMenu.getItems().addAll(runCode);
+
 
         // Debug Menu
         Menu debugMenu = new Menu("Debug");
@@ -161,15 +1154,16 @@ public class Custom_IDE extends Application {
 
         // Tools Menu
         Menu toolsMenu = new Menu("Tools");
+        MenuItem visualizeCode = new MenuItem("Visualize");
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
         MenuItem timeComplexity = new MenuItem("Time Complexity");
         MenuItem spaceComplexity = new MenuItem("Space Complexity");
         MenuItem deleteCode = new MenuItem("Clear Code");
-        toolsMenu.getItems().addAll(formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
+        toolsMenu.getItems().addAll(visualizeCode,formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
         timeComplexity.setOnAction(e -> calculateTimeComplexity());
         spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
-
+        visualizeCode.setOnAction(e -> startVisualization());
         // Setting Menu
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
@@ -203,6 +1197,7 @@ public class Custom_IDE extends Application {
         documentation.setOnAction(e -> appDocumentation());
         lightMode.setOnAction(e -> applyLightMode());
         darkMode.setOnAction(e -> applyDarkMode());
+        visualizeCode.setOnAction(e -> toggleVisualization());
 
         return menuBar;
     }
@@ -252,7 +1247,22 @@ public class Custom_IDE extends Application {
 
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+        codeArea.setOnKeyTyped(event -> {
+            String typedChar = event.getCharacter();
+            if (typedChar.isEmpty()) return;
 
+            switch (typedChar.charAt(0)) {
+                case '{':
+                    handleAutoFormatCurlyBrace(codeArea);
+                    break;
+                case '(':
+                    handleAutoFormatParenthesis(codeArea);
+                    break;
+                case '[':
+                    handleAutoFormatSquareBracket(codeArea);
+                    break;
+            }
+        });
         return codeArea;
     }
 
@@ -416,6 +1426,31 @@ public class Custom_IDE extends Application {
         } else {
             return "O(1)"; // Default to constant space
         }
+    }
+
+    private void handleAutoFormatSquareBracket(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+
+        // Insert the formatted structure: []
+        codeArea.insertText(caretPosition, "]");
+
+        // Move the cursor to the middle of the brackets
+        codeArea.moveTo(caretPosition);
+    }
+    private void handleAutoFormatParenthesis(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+
+        // Insert the formatted structure: ()
+        codeArea.insertText(caretPosition, ")");
+
+        // Move the cursor to the middle of the brackets
+        codeArea.moveTo(caretPosition);
+    }
+
+    private void handleAutoFormatCurlyBrace(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+        codeArea.insertText(caretPosition, "\n\n}");
+        codeArea.moveTo(caretPosition + 1); // Move caret between the curly braces
     }
     private SplitPane createSplitPane() {
         // Create output area
