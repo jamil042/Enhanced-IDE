@@ -1,6 +1,11 @@
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
@@ -274,8 +279,448 @@ public class CustomIDE extends Application {
             outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             visualizationPane.getChildren().add(outputText);
         }
+        else if (currentLine.startsWith("if") || currentLine.startsWith("else if") || currentLine.startsWith("else")) {
+            // Handle conditional statements
+            handleConditionalStatement(currentLine);
+        }
+        else if (currentLine.startsWith("for")) {
+            // Handle for loops
+            handleForLoop(currentLine);
+        }
+        else if (currentLine.startsWith("while")) {
+            // Handle while loops
+            handleWhileLoop(currentLine);
+        }
+        else if (currentLine.startsWith("do")) {
+            // Handle do-while loops
+            handleDoWhileLoop(currentLine);
+        }
+        else if (currentLine.startsWith("switch")) {
+            // Handle switch-case statements
+            handleSwitchCase(currentLine);
+        }
+        else if (currentLine.startsWith("int main")) {
+            // Handle main function
+            handleMainFunction(currentLine);
+        }
+        else if (currentLine.startsWith("#include")) {
+            // Handle library inclusions
+            handleLibraryInclusion(currentLine);
+        }
+        else if (currentLine.startsWith("return")) {
+            // Handle return statements
+            handleReturnStatement(currentLine);
+        }
+        else if (currentLine.startsWith("break")) {
+            // Handle break statements
+            handleBreakStatement();
+        }
+        else if (currentLine.startsWith("continue")) {
+            // Handle continue statements
+            handleContinueStatement();
+        }
+        else if (currentLine.startsWith("void")) {
+            // Handle void functions
+            handleVoidFunction(currentLine);
+        }
+        else if (currentLine.startsWith("class")) {
+            // Handle class definitions
+            handleClassDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("struct")) {
+            // Handle struct definitions
+            handleStructDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("typedef")) {
+            // Handle type definitions
+            handleTypeDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("enum")) {
+            // Handle enum definitions
+            handleEnumDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("namespace")) {
+            // Handle namespace definitions
+            handleNamespaceDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("using")) {
+            // Handle using directives
+            handleUsingDirective(currentLine);
+        }
+        else if (currentLine.startsWith("template")) {
+            // Handle template definitions
+            handleTemplateDefinition(currentLine);
+        }
+        else if (currentLine.startsWith("friend")) {
+            // Handle friend declarations
+            handleFriendDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("extern")) {
+            // Handle extern declarations
+            handleExternDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("static")) {
+            // Handle static declarations
+            handleStaticDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("const")) {
+            // Handle constant declarations
+            handleConstantDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("volatile")) {
+            // Handle volatile declarations
+            handleVolatileDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("register")) {
+            // Handle register declarations
+            handleRegisterDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("auto")) {
+            // Handle auto declarations
+            handleAutoDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("typedef")) {
+            // Handle typedef declarations
+            handleTypedefDeclaration(currentLine);
+        }
+        else if (currentLine.startsWith("asm")) {
+            // Handle assembly code
+            handleAssemblyCode(currentLine);
+        }
+        else if (currentLine.startsWith("goto")) {
+            // Handle goto statements
+            handleGotoStatement(currentLine);
+        }
+        else if (currentLine.startsWith("try")) {
+            // Handle try-catch blocks
+            handleTryCatchBlock(currentLine);
+        }
+        else if (currentLine.startsWith("throw")) {
+            // Handle throw statements
+            handleThrowStatement(currentLine);
+        }
+        else if (currentLine.startsWith("catch")) {
+            // Handle catch blocks
+            handleCatchBlock(currentLine);
+        }
+        else if (currentLine.startsWith("finally")) {
+            // Handle finally blocks
+            handleFinallyBlock(currentLine);
+        }
+        else if (currentLine.startsWith("new")) {
+            // Handle dynamic memory allocation
+            handleDynamicMemoryAllocation(currentLine);
+        }
+        else if (currentLine.startsWith("delete")) {
+            // Handle dynamic memory deallocation
+            handleDynamicMemoryDeallocation(currentLine);
+        }
+        else if (currentLine.startsWith("sizeof")) {
+            // Handle sizeof operator
+            handleSizeofOperator(currentLine);
+        }
+        else if (currentLine.startsWith("typeid")) {
+            // Handle typeid operator
+            handleTypeidOperator(currentLine);
+        }
+        else if (currentLine.startsWith("alignas")) {
+            // Handle alignas specifier
+            handleAlignasSpecifier(currentLine);
+        }
+        else if (currentLine.startsWith("alignof")) {
+            // Handle alignof operator
+            handleAlignofOperator(currentLine);
+        }
+        else if (currentLine.startsWith("and")) {
+            // Handle logical AND operator
+            handleLogicalAndOperator(currentLine);
+        }
     }
 
+    private void handleConditionalStatement(String currentLine) {
+        System.out.println("Handling conditional statement: " + currentLine); // Debug statement
+
+        if (currentLine.startsWith("if") || currentLine.startsWith("else if")) {
+            String condition = currentLine.substring(currentLine.indexOf('(') + 1, currentLine.lastIndexOf(')')).trim();
+            System.out.println("Evaluating condition: " + condition);
+
+            if (evaluateCondition(condition)) {
+                System.out.println("Condition is true. Visualizing block...");
+                visualizeBlock();
+                skipToEndOfConditional(); // Skip remaining else-if and else blocks
+            } else {
+                System.out.println("Condition is false. Skipping block...");
+                skipToNextCondition();
+            }
+        } else if (currentLine.startsWith("else")) {
+            System.out.println("Visualizing else block...");
+            visualizeBlock();
+        }
+    }
+
+
+    private boolean evaluateCondition(String condition) {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("JavaScript");
+
+        // Pass variables to the engine
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            engine.put(entry.getKey(), entry.getValue());
+        }
+
+        try {
+            // Evaluate the condition
+            Object result = engine.eval(condition);
+            System.out.println("Condition: " + condition + " | Result: " + result); // Debug statement
+
+            if (result instanceof Boolean) {
+                return (Boolean) result;
+            } else {
+                throw new ScriptException("Condition did not evaluate to a boolean value.");
+            }
+        } catch (ScriptException e) {
+            showError("Evaluation Error", "Failed to evaluate condition: " + condition + "\n" + e.getMessage());
+            return false;
+        }
+    }
+
+    private void visualizeBlock() {
+        currentLineIndex++;
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Handle opening and closing braces
+            if (line.equals("{")) {
+                openBraces++;
+            } else if (line.equals("}")) {
+                if (openBraces == 0) {
+                    break; // End of block
+                }
+                openBraces--;
+            }
+
+            // Visualize the current line
+            updateVisualization();
+            currentLineIndex++;
+        }
+    }
+    private void skipToEndOfConditional() {
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Check for the end of the conditional statement
+            if (line.equals("}") && openBraces == 0) {
+                break;
+            }
+
+            // Handle nested blocks
+            if (line.contains("{")) {
+                openBraces++;
+            }
+            if (line.contains("}")) {
+                openBraces--;
+            }
+
+            currentLineIndex++;
+        }
+    }
+    private void skipToNextCondition() {
+        int openBraces = 0;
+        while (currentLineIndex < codeLines.size()) {
+            String line = codeLines.get(currentLineIndex).trim();
+
+            // Check for the start of a new condition or the end of the conditional statement
+            if (line.startsWith("else if") || line.startsWith("else") || (line.equals("}") && openBraces == 0)) {
+                break;
+            }
+
+            // Handle nested blocks
+            if (line.contains("{")) {
+                openBraces++;
+            }
+            if (line.contains("}")) {
+                openBraces--;
+            }
+
+            currentLineIndex++;
+        }
+    }
+    private void handleForLoop(String currentLine) {
+        // Extract the initialization, condition, and update parts of the for loop
+        String forContent = currentLine.substring(currentLine.indexOf('(') + 1, currentLine.lastIndexOf(')')).trim();
+        String[] parts = forContent.split(";");
+        String initialization = parts[0].trim();
+        String condition = parts[1].trim();
+        String update = parts[2].trim();
+
+        // Execute the initialization part
+        evaluateExpression(initialization, "int");
+
+        // Create a visualization box for the for loop
+        Rectangle loopBox = new Rectangle(10, 50 + (variables.size() - 1) * 40, 300, 200);
+        loopBox.setFill(Color.LIGHTGRAY);
+        loopBox.setStroke(Color.BLACK);
+        visualizationPane.getChildren().add(loopBox);
+
+        // Iterate through the loop and update the visualization
+        while (evaluateCondition(condition)) {
+            // Update the visualization with the current values of the loop variables
+            updateVisualization();
+
+            // Execute the update part
+            evaluateExpression(update, "int");
+        }
+    }
+
+    private void handleWhileLoop(String currentLine) {
+        // Implementation for handling while loops
+    }
+
+    private void handleDoWhileLoop(String currentLine) {
+        // Implementation for handling do-while loops
+    }
+
+    private void handleSwitchCase(String currentLine) {
+        // Implementation for handling switch-case statements
+    }
+
+    private void handleMainFunction(String currentLine) {
+        // Implementation for handling main function
+    }
+
+    private void handleLibraryInclusion(String currentLine) {
+        // Implementation for handling #include statements
+    }
+
+    private void handleReturnStatement(String currentLine) {
+        // Implementation for handling return statements
+    }
+
+    private void handleBreakStatement() {
+        // Implementation for handling break statements
+    }
+
+    private void handleContinueStatement() {
+        // Implementation for handling continue statements
+    }
+
+    private void handleVoidFunction(String currentLine) {
+        // Implementation for handling void functions
+    }
+
+    private void handleClassDefinition(String currentLine) {
+        // Implementation for handling class definitions
+    }
+
+    private void handleStructDefinition(String currentLine) {
+        // Implementation for handling struct definitions
+    }
+
+    private void handleTypeDefinition(String currentLine) {
+        // Implementation for handling type definitions
+    }
+
+    private void handleEnumDefinition(String currentLine) {
+        // Implementation for handling enum definitions
+    }
+
+    private void handleSizeofOperator(String currentLine) {
+        // Implementation for handling sizeof operator
+    }
+
+    private void handleNamespaceDefinition(String currentLine) {
+        // Implementation for handling namespace definitions
+    }
+
+    private void handleUsingDirective(String currentLine) {
+        // Implementation for handling using directives
+    }
+
+    private void handleTemplateDefinition(String currentLine) {
+        // Implementation for handling template definitions
+    }
+
+    private void handleFriendDeclaration(String currentLine) {
+        // Implementation for handling friend declarations
+    }
+
+    private void handleExternDeclaration(String currentLine) {
+        // Implementation for handling extern declarations
+    }
+
+    private void handleStaticDeclaration(String currentLine) {
+        // Implementation for handling static declarations
+    }
+
+    private void handleConstantDeclaration(String currentLine) {
+        // Implementation for handling constant declarations
+    }
+
+    private void handleVolatileDeclaration(String currentLine) {
+        // Implementation for handling volatile declarations
+    }
+
+    private void handleRegisterDeclaration(String currentLine) {
+        // Implementation for handling register declarations
+    }
+
+    private void handleAutoDeclaration(String currentLine) {
+        // Implementation for handling auto declarations
+    }
+
+    private void handleTypedefDeclaration(String currentLine) {
+        // Implementation for handling typedef declarations
+    }
+
+    private void handleAssemblyCode(String currentLine) {
+        // Implementation for handling assembly code
+    }
+
+    private void handleGotoStatement(String currentLine) {
+        // Implementation for handling goto statements
+    }
+
+    private void handleTryCatchBlock(String currentLine) {
+        // Implementation for handling try-catch blocks
+    }
+
+    private void handleThrowStatement(String currentLine) {
+        // Implementation for handling throw statements
+    }
+
+    private void handleCatchBlock(String currentLine) {
+        // Implementation for handling catch blocks
+    }
+
+    private void handleFinallyBlock(String currentLine) {
+        // Implementation for handling finally blocks
+    }
+
+    private void handleDynamicMemoryAllocation(String currentLine) {
+        // Implementation for handling dynamic memory allocation
+    }
+
+    private void handleDynamicMemoryDeallocation(String currentLine) {
+        // Implementation for handling dynamic memory deallocation
+    }
+
+    private void handleTypeidOperator(String currentLine) {
+        // Implementation for handling typeid operator
+    }
+
+    private void handleAlignasSpecifier(String currentLine) {
+        // Implementation for handling alignas specifier
+    }
+
+    private void handleAlignofOperator(String currentLine) {
+        // Implementation for handling alignof operator
+    }
+
+    private void handleLogicalAndOperator(String currentLine) {
+        // Implementation for handling logical AND operator
+    }
     private void visualizeDataStructure(String varName, Object value, String type) {
         // Clear previous visualization for this data structure
         visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
@@ -396,19 +841,19 @@ public class CustomIDE extends Application {
 
         try {
             switch (type) {
-                case "int": return Integer.parseInt(expression);
-                case "float": return Float.parseFloat(expression);
-                case "double": return Double.parseDouble(expression);
-                case "string": return expression.replace("\"", "");
-                case "char": return expression.length() == 3 ? expression.charAt(1) : '\0';
-                case "bool": return Boolean.parseBoolean(expression);
-                case "short": return Short.parseShort(expression);
+                case "int":
+                    return Integer.parseInt(expression);
+                case "double":
+                    return Double.parseDouble(expression);
+                case "float":
+                    return Float.parseFloat(expression);
+                default:
+                    return evaluateArithmeticExpression(expression);
             }
         } catch (NumberFormatException ignored) {}
 
         return evaluateArithmeticExpression(expression);
     }
-
     private Object evaluateArithmeticExpression(String expression) {
         List<String> postfix = infixToPostfix(expression);
         Stack<Number> stack = new Stack<>();
@@ -420,7 +865,21 @@ public class CustomIDE extends Application {
                 stack.push(Double.parseDouble(token));
             } else if (variables.containsKey(token)) {
                 stack.push((Number) variables.get(token));
-            } else {
+            }
+            else if (token.matches("\\+\\+\\w+|\\w+\\+\\+|--\\w+|\\w+--")) {
+                String varName = token.replaceAll("\\+\\+|--", "");
+                if (variables.containsKey(varName)) {
+                    int value = (int) variables.get(varName);
+                    if (token.startsWith("++") || token.endsWith("++")) {
+                        value++;
+                    } else if (token.startsWith("--") || token.endsWith("--")) {
+                        value--;
+                    }
+                    variables.put(varName, value);
+                    stack.push(value);
+                }
+            }
+            else {
                 Number b = stack.pop();
                 Number a = stack.pop();
 
@@ -430,6 +889,8 @@ public class CustomIDE extends Application {
                         case "-": stack.push(a.intValue() - b.intValue()); break;
                         case "*": stack.push(a.intValue() * b.intValue()); break;
                         case "/": stack.push(a.intValue() / b.intValue()); break;
+                        case "%": stack.push(a.intValue() % b.intValue()); break;
+
                     }
                 } else { // At least one operand is a Double
                     double aVal = a.doubleValue();
@@ -440,8 +901,8 @@ public class CustomIDE extends Application {
                         case "-": result=(aVal - bVal); break;
                         case "*": result=(aVal * bVal); break;
                         case "/": result=(aVal / bVal); break;
+                        case "%": result=(aVal % bVal); break;
                     }
-                    //result=Math.round(result * 100.0) / 100.0;
                     stack.push(result);
                 }
             }
@@ -575,6 +1036,8 @@ public class CustomIDE extends Application {
     // Add this method to the "Visualize" button action
     private void startVisualization() {
         initializeCodeLines();
+        currentLineIndex = 0;
+        updateVisualization();
         for (Map.Entry<String, Object> entry : variables.entrySet()) {
             visualizeArray(entry.getKey(), entry.getValue());
         }
@@ -610,7 +1073,9 @@ public class CustomIDE extends Application {
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
         MenuItem deleteCode = new MenuItem("Clear Code");
-        toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode);
+        MenuItem timeComplexity = new MenuItem("Time Complexity");
+        toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode, timeComplexity);
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
 
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
@@ -642,7 +1107,71 @@ public class CustomIDE extends Application {
 
         return menuBar;
     }
+    private void calculateTimeComplexity() {
+        String code = codeArea.getText();
+        String timeComplexity = analyzeTimeComplexity(code);
+        outputArea.setText("Time Complexity: " + timeComplexity);
+    }
+    private String analyzeTimeComplexity(String code) {
+        String[] lines = code.split("\n");
+        int maxNestedLoops = 0;
+        boolean hasRecursion = false;
+        boolean hasLogarithmicLoop = false;
+        boolean hasLinearithmic = false;
+        boolean hasDifferentRanges = false;
 
+        for (String line : lines) {
+            line = line.trim();
+
+            // Check for loops
+            if (line.startsWith("for") || line.startsWith("while")) {
+                maxNestedLoops++;
+
+                // Check for logarithmic loops (e.g., i *= 2 or i /= 2)
+                if (line.contains("*=") || line.contains("/=")) {
+                    hasLogarithmicLoop = true;
+                }
+
+                // Check for different ranges in nested loops
+                if (line.contains("i < n") && line.contains("j < m")) {
+                    hasDifferentRanges = true;
+                }
+            }
+
+            // Check for recursion
+            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+                hasRecursion = true;
+            }
+
+            // Check for divide-and-conquer algorithms (e.g., merge sort, quicksort)
+            if (line.contains("mergeSort(") || line.contains("quickSort(")) {
+                hasLinearithmic = true;
+            }
+        }
+
+        // Determine the time complexity based on the analysis
+        if (maxNestedLoops == 0 && !hasRecursion) {
+            return "O(1)"; // Constant time
+        } else if (maxNestedLoops == 1 && !hasRecursion) {
+            if (hasLogarithmicLoop) {
+                return "O(log n)"; // Logarithmic time
+            } else {
+                return "O(n)"; // Linear time
+            }
+        } else if (maxNestedLoops == 2 && !hasRecursion) {
+            if (hasDifferentRanges) {
+                return "O(n * m)"; // Different ranges
+            } else {
+                return "O(n^2)"; // Quadratic time
+            }
+        } else if (hasLinearithmic) {
+            return "O(n log n)"; // Linearithmic time
+        } else if (hasRecursion) {
+            return "O(2^n)"; // Exponential time (for simplicity)
+        } else {
+            return "O(n^k)"; // Polynomial time (k = maxNestedLoops)
+        }
+    }
     private void createNewFile(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Create New File");
@@ -697,53 +1226,51 @@ public class CustomIDE extends Application {
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
 
-        // Add key pressed event listener for auto-closing brackets
+        // Add key pressed event listener for auto-formatting
         codeArea.setOnKeyTyped(event -> {
             String typedChar = event.getCharacter();
             if (typedChar.isEmpty()) return;
 
             switch (typedChar.charAt(0)) {
-                case '(':
-                    handleAutoClosingBracket(codeArea, '(', ')');
-                    break;
                 case '{':
-                    handleAutoClosingBracket(codeArea, '{', '}');
+                    handleAutoFormatCurlyBrace(codeArea);
+                    break;
+                case '(':
+                    handleAutoFormatParenthesis(codeArea);
                     break;
                 case '[':
-                    handleAutoClosingBracket(codeArea, '[', ']');
+                    handleAutoFormatSquareBracket(codeArea);
                     break;
             }
         });
 
         return codeArea;
     }
-    private void handleAutoClosingQuote(CodeArea codeArea) {
-        int caretPosition = codeArea.getCaretPosition();
-        String text = codeArea.getText();
 
-        // Check if the next character is already a closing quote
-        if (caretPosition < text.length() && text.charAt(caretPosition) == '"') {
-            // Move the caret forward
-            codeArea.moveTo(caretPosition + 1);
-        } else {
-            // Insert closing quote and move the caret back
-            codeArea.insertText(caretPosition, "\"");
-            codeArea.moveTo(caretPosition);
-        }
+    private void handleAutoFormatSquareBracket(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+
+        // Insert the formatted structure: []
+        codeArea.insertText(caretPosition, "]");
+
+        // Move the cursor to the middle of the brackets
+        codeArea.moveTo(caretPosition);
     }
-    private void handleAutoClosingBracket(CodeArea codeArea, char openBracket, char closeBracket) {
-        int caretPosition = codeArea.getCaretPosition();
-        String text = codeArea.getText();
 
-        // Check if the next character is already a closing bracket
-        if (caretPosition < text.length() && text.charAt(caretPosition) == closeBracket) {
-            // Move the caret forward
-            codeArea.moveTo(caretPosition + 1);
-        } else {
-            // Insert closing bracket and move the caret back
-            codeArea.insertText(caretPosition, String.valueOf(closeBracket));
-            codeArea.moveTo(caretPosition);
-        }
+    private void handleAutoFormatParenthesis(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+
+        // Insert the formatted structure: ()
+        codeArea.insertText(caretPosition, ")");
+
+        // Move the cursor to the middle of the brackets
+        codeArea.moveTo(caretPosition);
+    }
+
+    private void handleAutoFormatCurlyBrace(CodeArea codeArea) {
+        int caretPosition = codeArea.getCaretPosition();
+        codeArea.insertText(caretPosition, "\n\n}");
+        codeArea.moveTo(caretPosition + 1); // Move caret between the curly braces
     }
     private SplitPane createSplitPane() {
         // Create output area for displaying results
