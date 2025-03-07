@@ -35,6 +35,44 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.geometry.Pos;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.geometry.Orientation;
+import javafx.stage.FileChooser;
+import javafx.stage.StageStyle;
+import javafx.util.Duration;
+import org.fxmisc.flowless.VirtualizedScrollPane;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Alert;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
+import java.io.*;
+import java.util.*;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import java.util.Optional;
+import javafx.scene.control.TextArea;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class CustomIDE extends Application {
 
     private CodeArea codeArea;
@@ -42,64 +80,104 @@ public class CustomIDE extends Application {
     private TextArea inputArea;
     private ListView<String> fileListView;
     private String currentFileName = "Untitled1";
-    private int currentLineIndex = 0; // Track the current line being visualized
-    private List<String> codeLines = new ArrayList<>(); // Store individual lines of code
-    private Pane visualizationPane; // Pane for visualization
-    private Label currentLineLabel; // Label to display the current line
-    private Map<String, Object> variables = new HashMap<>(); // Track variables and their values
-    private Map<String, Rectangle> variableBoxes = new HashMap<>(); // Track variable boxes
-    private Map<String, Text> variableTexts = new HashMap<>(); // Track variable text labels
-    private Map<String, String> fileContents = new HashMap<>();
+    private int currentLineIndex = 0;
+    private List<String> codeLines = new ArrayList<>();
+    private Pane visualizationPane;
+    private Label currentLineLabel;
+    private Map<String, Object> variables = new HashMap<>();
+    private Map<String, Rectangle> variableBoxes = new HashMap<>();
+    private Map<String, Text> variableTexts = new HashMap<>();
+    private Map<String, String> fileContentMap = new HashMap<>();
     private Map<String, File> fileMap = new HashMap<>();
-    //private String currentFileName = null;
-
     @Override
     public void start(Stage primaryStage) {
-        BorderPane root = new BorderPane();
+        Stage splashStage = new Stage();
+        splashStage.initStyle(StageStyle.UNDECORATED);
+        Image logoImage = new Image(getClass().getResourceAsStream("Enhenced_IDE_Pic.jpg"));
+        ImageView logoView = new ImageView(logoImage);
+        logoView.setFitWidth(800);
+        logoView.setFitHeight(600);
+        logoView.setPreserveRatio(true);
 
-        // MenuBar
-        MenuBar menuBar = createMenuBar(primaryStage);
-        codeArea = createCodeArea();
-        SplitPane splitPane = createSplitPane();
 
-        // File ListView
-        fileListView = new ListView<>();
-        fileListView.getItems().add(currentFileName); // Add the first default file
-        fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                fileContents.put(currentFileName, codeArea.getText());
-                currentFileName = newVal;
-                codeArea.replaceText(fileContents.get(newVal));
+        StackPane splashLayout = new StackPane(logoView);
+        splashLayout.setStyle("-fx-background-color: white;");
+        Scene splashScene = new Scene(splashLayout, 800, 400);
+        splashStage.setScene(splashScene);
+
+        centerStageOnScreen(splashStage);
+        splashStage.show();
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
+            Platform.runLater(() -> {
+                splashStage.close();
+                BorderPane root = new BorderPane();
+                MenuBar menuBar = createMenuBar(primaryStage);
+                codeArea = createCodeArea();
 
-        applyLightMode();
-        VBox leftPane = new VBox(new Label("Files"), fileListView);
 
-        // Center SplitPane
-        SplitPane centerSplitPane = createSplitPane();
+                // Create the "Files" label
+                Label filesLabel = new Label("File Section");
+                filesLabel.setStyle(
+                        "-fx-font-size: 18px; " +  // Larger font size for the section title
+                                "-fx-font-family: 'Segoe UI', sans-serif; " +  // Modern font family
+                                "-fx-font-weight: bold; " +  // Bold text
+                                "-fx-text-fill: #2c3e50; " +  // Darker text color for better contrast (matching fileListView theme)
+                                "-fx-background-color: rgba(173, 216, 230, 0.6); " +  // Light sky-blue background similar to fileListView
+                                "-fx-padding: 10px 15px; " +  // Padding inside the label
+                                "-fx-border-radius: 5px;"  // Rounded corners for the label
+                );
 
-        // Create a horizontal SplitPane to include the resizable left pane
-        SplitPane mainSplitPane = new SplitPane();
-        mainSplitPane.setOrientation(Orientation.HORIZONTAL);
-        mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
+                fileListView = new ListView<>();
+                fileListView.setPrefWidth(80);
+                fileListView.setMinWidth(60);
+                fileListView.getItems().add(currentFileName);
+                fileContentMap.put(currentFileName, "");
+                initializeFileListView();
 
-        // Optionally, set the initial divider position (e.g., 20% for the left pane)
-        mainSplitPane.setDividerPositions(0.2);
+                VBox leftPane = new VBox(filesLabel, fileListView);
+                leftPane.setPrefWidth(90);
+                leftPane.setMinWidth(70);
+                leftPane.setStyle(
+                        "-fx-background-color: #f4f4f4; " +  // Light gray background for the VBox
+                                "-fx-padding: 0px; " +  // No extra padding
+                                "-fx-spacing: 0px;"  // No extra space between label and file list
+                );
+                filesLabel.setMaxWidth(Double.MAX_VALUE);
+                filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
+                leftPane.setFillWidth(true);
 
-        // Visualization Workarea
-        VBox visualizationWorkarea = createVisualizationWorkarea();
-        mainSplitPane.getItems().add(visualizationWorkarea);
 
-        // Layout Setup
-        root.setTop(menuBar);
-        root.setCenter(mainSplitPane);
+                SplitPane centerSplitPane = createSplitPane();
+                SplitPane mainSplitPane = new SplitPane();
+                mainSplitPane.setOrientation(Orientation.HORIZONTAL);
+                mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
+                mainSplitPane.setDividerPositions(0.02);
+                VBox visualizationWorkarea = createVisualizationWorkarea();
+                mainSplitPane.getItems().add(visualizationWorkarea);
+                root.setTop(menuBar);
+                root.setCenter(mainSplitPane);
+                Image Icon = new Image(getClass().getResourceAsStream("Project Logo.jpg"));
 
-        primaryStage.setMaximized(true);
-        Scene scene = new Scene(root, 800, 600);
-        primaryStage.setScene(scene);
-        primaryStage.setTitle("Enhanced IDE");
-        primaryStage.show();
+                Scene scene = new Scene(root, 800, 600);
+                primaryStage.setMaximized(true);
+                primaryStage.setScene(scene);
+                primaryStage.getIcons().add(Icon);
+                primaryStage.setTitle("Enhanced IDE");
+                primaryStage.show();
+            });
+        }).start();
+    }
+
+    private void centerStageOnScreen(Stage stage) {
+        double centerX = 370;
+        double centerY = 250;
+        stage.setX(centerX);
+        stage.setY(centerY);
     }
 
     private VBox createVisualizationWorkarea() {
@@ -1045,59 +1123,71 @@ public class CustomIDE extends Application {
 
 
 
-    // Add a "Visualize" button to the menu or toolbar
     private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
 
+        // Load the CSS file
+        menuBar.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+
+        // File Menu
         Menu fileMenu = new Menu("File");
         MenuItem openFile = new MenuItem("Open");
         MenuItem saveFile = new MenuItem("Save");
         MenuItem newFile = new MenuItem("New");
         MenuItem closeFile = new MenuItem("Close");
-        //MenuItem deleteFile = new MenuItem("Delete");
-
         fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile);
 
+        // Run Menu
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
-        MenuItem visualizeCode = new MenuItem("Visualize");
-        runMenu.getItems().addAll(runCode, visualizeCode);
 
-        visualizeCode.setOnAction(e -> startVisualization());
+        runMenu.getItems().addAll(runCode);
 
+
+        // Debug Menu
         Menu debugMenu = new Menu("Debug");
         MenuItem debugCode = new MenuItem("Debug");
         debugMenu.getItems().add(debugCode);
 
+        // Tools Menu
         Menu toolsMenu = new Menu("Tools");
+        MenuItem visualizeCode = new MenuItem("Visualize");
         MenuItem formatCode = new MenuItem("Code Template");
         MenuItem analyzeCode = new MenuItem("Analyze Code");
-        MenuItem deleteCode = new MenuItem("Clear Code");
         MenuItem timeComplexity = new MenuItem("Time Complexity");
-        toolsMenu.getItems().addAll(formatCode, analyzeCode, deleteCode, timeComplexity);
+        MenuItem spaceComplexity = new MenuItem("Space Complexity");
+        MenuItem deleteCode = new MenuItem("Clear Code");
+        toolsMenu.getItems().addAll(visualizeCode,formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
         timeComplexity.setOnAction(e -> calculateTimeComplexity());
-
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
+        visualizeCode.setOnAction(e -> startVisualization());
+        // Setting Menu
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
         MenuItem lightMode = new MenuItem("Light Mode");
         MenuItem darkMode = new MenuItem("Dark Mode");
-        themeMenu.getItems().addAll(lightMode, darkMode);
-        settingMenu.getItems().add(themeMenu);
 
+
+        themeMenu.getItems().addAll(lightMode, darkMode);
+        settingMenu.getItems().addAll(themeMenu);
+
+        // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem aboutApp = new MenuItem("About");
         MenuItem documentation = new MenuItem("Documentation");
         helpMenu.getItems().addAll(documentation, aboutApp);
 
+        // Add Menus to MenuBar
         menuBar.getMenus().addAll(fileMenu, runMenu, debugMenu, toolsMenu, settingMenu, helpMenu);
 
-        newFile.setOnAction(e -> createNewFile(primaryStage));
+        // Event Handlers
         openFile.setOnAction(e -> openFile(primaryStage));
+        newFile.setOnAction(e -> newFile(primaryStage));
         saveFile.setOnAction(e -> saveFile(primaryStage));
         closeFile.setOnAction(e -> closeFile(primaryStage));
         runCode.setOnAction(e -> runCode());
         debugCode.setOnAction(e -> debugCode());
-        //deleteCode.setOnAction(e -> deleteCode());
+        deleteCode.setOnAction(e -> deleteCode());
         aboutApp.setOnAction(e -> detailsAboutIDE());
         formatCode.setOnAction(e -> codeFormat());
         analyzeCode.setOnAction(e -> codeAnalyze());
@@ -1107,6 +1197,71 @@ public class CustomIDE extends Application {
 
         return menuBar;
     }
+
+    private CodeArea createCodeArea() {
+        CodeArea codeArea = new CodeArea();
+        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+        codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
+
+        // Default font size
+        final IntegerProperty fontSize = new SimpleIntegerProperty(14);
+
+        // Apply initial style
+        codeArea.styleProperty().bind(Bindings.concat(
+                "-fx-font-family: 'Courier New', 'Courier', 'monospace'; ",
+                "-fx-font-size: ", fontSize.asString(), "px; ",
+                "-fx-text-fill: #000000;" // Changed text color to black for better visibility
+        ));
+
+        // Handle Zoom In / Zoom Out using Mouse Scroll + Ctrl
+        codeArea.setOnScroll(event -> {
+            if (event.isControlDown()) {
+                if (event.getDeltaY() > 0) { // Scroll Up -> Zoom In
+                    fontSize.set(Math.min(fontSize.get() + 2, 30));
+                } else { // Scroll Down -> Zoom Out
+                    fontSize.set(Math.max(fontSize.get() - 2, 10));
+                }
+            }
+        });
+
+        // Handle Zoom In / Zoom Out using Keyboard Shortcuts (Ctrl + '+' and Ctrl + '-')
+        codeArea.setOnKeyPressed(event -> {
+            if (event.isControlDown()) {
+                switch (event.getCode()) {
+                    case EQUALS: // Ctrl + '=' (Zoom In)
+                    case PLUS: // Ctrl + '+'
+                        fontSize.set(Math.min(fontSize.get() + 2, 30));
+                        break;
+                    case MINUS: // Ctrl + '-'
+                        fontSize.set(Math.max(fontSize.get() - 2, 10));
+                        break;
+                    default:
+                        return;
+                }
+            }
+        });
+
+        codeArea.getStyleClass().add("light-mode");
+        codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+        codeArea.setOnKeyTyped(event -> {
+            String typedChar = event.getCharacter();
+            if (typedChar.isEmpty()) return;
+
+            switch (typedChar.charAt(0)) {
+                case '{':
+                    handleAutoFormatCurlyBrace(codeArea);
+                    break;
+                case '(':
+                    handleAutoFormatParenthesis(codeArea);
+                    break;
+                case '[':
+                    handleAutoFormatSquareBracket(codeArea);
+                    break;
+            }
+        });
+        return codeArea;
+    }
+
     private void calculateTimeComplexity() {
         String code = codeArea.getText();
         String timeComplexity = analyzeTimeComplexity(code);
@@ -1172,79 +1327,101 @@ public class CustomIDE extends Application {
             return "O(n^k)"; // Polynomial time (k = maxNestedLoops)
         }
     }
-    private void createNewFile(Stage stage) {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Create New File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
-        File file = fileChooser.showSaveDialog(stage);
-
-        if (file != null) {
-            String fileName = file.getName();
-            if (!fileListView.getItems().contains(fileName)) {
-                fileListView.getItems().add(fileName);
-                fileContents.put(fileName, "");
-                currentFileName = fileName;
-                codeArea.clear();
-            }
-        }
+    private void calculateSpaceComplexity() {
+        String code = codeArea.getText();
+        String spaceComplexity = analyzeSpaceComplexity(code);
+        outputArea.setText("Space Complexity: " + spaceComplexity);
     }
 
-    private void closeFile(Stage stage) {
-        if (fileContents.containsKey(currentFileName)) {
-            String currentContent = fileContents.get(currentFileName);
-            String codeAreaContent = codeArea.getText();
+    private String analyzeSpaceComplexity(String code) {
+        String[] lines = code.split("\n");
 
-            if (!currentContent.equals(codeAreaContent)) {
-                Alert alert = new Alert(AlertType.CONFIRMATION);
-                alert.setTitle("Unsaved Changes");
-                alert.setHeaderText("You have unsaved changes.");
-                alert.setContentText("Do you want to save them before closing the file?");
-                Optional<ButtonType> result = alert.showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.OK) {
-                    saveFile(stage);
+        int variableCount = 0;
+        int arraySize = 0;
+        int matrixSize = 0;
+        int recursiveDepth = 0;
+        boolean hasDynamicAllocation = false;
+        boolean hasQueue = false;
+        boolean hasStack = false;
+        boolean hasLinkedList = false;
+        boolean hasVector = false;
+        boolean has2DVector = false;
+
+        for (String line : lines) {
+            line = line.trim();
+
+            // Count variables
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*;")) {
+                variableCount++;
+            }
+
+            // Count array sizes
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+                String sizeStr = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\].*", "$1");
+                if (sizeStr.matches("\\d+")) {
+                    arraySize += Integer.parseInt(sizeStr);
+                } else {
+                    arraySize += 1; // Assume dynamic size
                 }
             }
 
-            fileListView.getItems().remove(currentFileName);
-            fileContents.remove(currentFileName);
-            if (!fileListView.getItems().isEmpty()) {
-                currentFileName = fileListView.getItems().get(0);
-                codeArea.replaceText(fileContents.get(currentFileName));
-            } else {
-                currentFileName = "Untitled1";
-                codeArea.clear();
+            // Count matrix sizes
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+                String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
+                if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
+                    matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
+                } else {
+                    matrixSize += 1; // Assume dynamic size
+                }
+            }
+
+            // Check for 2D vectors
+            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*;")) {
+                has2DVector = true;
+            }
+
+            // Check for 1D vectors
+            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*;")) {
+                hasVector = true;
+            }
+
+            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*;")) {
+                hasQueue = true;
+            }
+            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*;")) {
+                hasStack = true;
+            }
+            if (line.matches("list\\s*<.*>\\s*\\w+\\s*;")) {
+                hasLinkedList = true;
+            }
+
+            // Count recursive depth
+            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+                recursiveDepth++;
+            }
+
+            // Check for dynamic memory allocation
+            if (line.contains("new") || line.contains("malloc") || line.contains("calloc")) {
+                hasDynamicAllocation = true;
             }
         }
-    }
 
-
-    private CodeArea createCodeArea() {
-        CodeArea codeArea = new CodeArea();
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
-        codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
-        codeArea.setStyle("-fx-font-family: 'monospace'; -fx-font-size: 14px;");
-        codeArea.getStyleClass().add("light-mode");
-        codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
-
-        // Add key pressed event listener for auto-formatting
-        codeArea.setOnKeyTyped(event -> {
-            String typedChar = event.getCharacter();
-            if (typedChar.isEmpty()) return;
-
-            switch (typedChar.charAt(0)) {
-                case '{':
-                    handleAutoFormatCurlyBrace(codeArea);
-                    break;
-                case '(':
-                    handleAutoFormatParenthesis(codeArea);
-                    break;
-                case '[':
-                    handleAutoFormatSquareBracket(codeArea);
-                    break;
-            }
-        });
-
-        return codeArea;
+        // Determine the space complexity based on the analysis
+        if (variableCount == 0 && arraySize == 0 && matrixSize == 0 && recursiveDepth == 0 && !hasDynamicAllocation && !hasVector && !has2DVector) {
+            return "O(1)"; // Constant space
+        } else if (matrixSize > 0 || has2DVector) {
+            return "O(n^2)"; // Quadratic space (due to matrices or 2D vectors)
+        } else if (arraySize > 0 || hasVector) {
+            return "O(n)"; // Linear space (due to arrays or 1D vectors)
+        } else if (hasVector || hasQueue || hasStack || hasLinkedList) {
+            return "O(n)"; // Linear space (due to data structures)
+        } else if (recursiveDepth > 0) {
+            return "O(n)"; // Linear space (due to recursion)
+        } else if (hasDynamicAllocation) {
+            return "O(n)"; // Linear space (due to dynamic memory allocation)
+        } else {
+            return "O(1)"; // Default to constant space
+        }
     }
 
     private void handleAutoFormatSquareBracket(CodeArea codeArea) {
@@ -1256,7 +1433,6 @@ public class CustomIDE extends Application {
         // Move the cursor to the middle of the brackets
         codeArea.moveTo(caretPosition);
     }
-
     private void handleAutoFormatParenthesis(CodeArea codeArea) {
         int caretPosition = codeArea.getCaretPosition();
 
@@ -1273,103 +1449,361 @@ public class CustomIDE extends Application {
         codeArea.moveTo(caretPosition + 1); // Move caret between the curly braces
     }
     private SplitPane createSplitPane() {
-        // Create output area for displaying results
+        // Create output area
         outputArea = new TextArea();
         outputArea.setEditable(false);
-        outputArea.setStyle("-fx-control-inner-background: black; -fx-text-fill: white;");
-        outputArea.setPrefHeight(150); // You can tweak this based on preference
+        outputArea.setStyle("-fx-control-inner-background: black; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-family: 'Courier New'; " +
+                "-fx-font-size: 16px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-border-color: transparent; " +
+                "-fx-border-width: 1.5px; " +
+                "-fx-padding: 0px;");
+        outputArea.setPrefHeight(150);
 
-        // Create input area for user input (e.g., for running programs)
+        // Create input area
         inputArea = new TextArea();
-        inputArea.setPromptText("Enter input for your program here...");
-        inputArea.setPrefHeight(100); // This can be adjusted dynamically
+        inputArea.setPromptText("Enter input here...");
+        inputArea.setStyle(
+                "-fx-control-inner-background: #ced9d7; " + /* Soft blue background */
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-border-color: #89CFF0; " + /* Soft blue border */
+                        "-fx-border-width: 2px; " +
+                        "-fx-background-radius: 8px; " + /* Rounded corners */
+                        "-fx-padding: 3px; " +
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
+        );
 
-        // Create the code area (for coding)
-        codeArea = createCodeArea(); // Initialize the codeArea
+        // Hover effect - Brighter blue glow
+        inputArea.setOnMouseEntered(e -> inputArea.setStyle(
+                "-fx-control-inner-background: #ced9d7; " + /* Slightly darker blue */
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +/* Brighter blue border */
+                        "-fx-border-width: 3px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-padding: 3px; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 255, 0.3), 8, 0, 0, 3);" + /* Blue glow */
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.6);"
+        ));
 
-        // Create the SplitPane
+        // Reset hover effect
+        inputArea.setOnMouseExited(e -> inputArea.setStyle(
+                "-fx-control-inner-background: #dce6e4; " +
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-font-family: 'Consolas'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-border-width: 2px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-padding: 3px; " +
+                        "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
+        ));
+
+        // Code area
+        codeArea = createCodeArea();
+        VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea);
+
+        // Create SplitPane
         SplitPane splitPane = new SplitPane();
-        splitPane.setOrientation(Orientation.VERTICAL); // Stack vertically (code on top, input/output on bottom)
+        splitPane.setOrientation(Orientation.VERTICAL);
 
-        // Add the areas to the split pane
-        splitPane.getItems().addAll(codeArea, inputArea, outputArea);
+        // **Hide divider initially & add blue hover effect**
+        splitPane.setStyle("-fx-divider-color: transparent;");
 
-        // Set divider positions (these can be adjusted to allow resizing)
-        splitPane.setDividerPositions(0.7, 0.85); // Initially, codeArea gets 70%, input/output get 30%
+        // Hover - Soft Blue Divider
+        splitPane.setOnMouseEntered(e -> splitPane.setStyle("-fx-divider-color: rgba(30, 144, 255, 0.5);")); // DodgerBlue
+
+        // Click Effect - Glowing Blue
+        splitPane.setOnMousePressed(e -> splitPane.setStyle("-fx-divider-color: rgba(0, 102, 204, 1);")); // Deep Blue
+
+        // Release - Fade Out Effect
+        splitPane.setOnMouseReleased(e -> {
+            new Timeline(new KeyFrame(Duration.millis(300), evt ->
+                    splitPane.setStyle("-fx-divider-color: transparent;"))
+            ).play();
+        });
+
+        // Add areas to the split pane
+        splitPane.getItems().addAll(scrollableCodeArea, inputArea, outputArea);
+
+        // Set divider positions (code gets 70%, input/output get 30%)
+        splitPane.setDividerPositions(0.7, 0.85);
 
         return splitPane;
     }
 
-    private String getFileContent(String fileName) {
-        StringBuilder content = new StringBuilder();
-        File file = new File(fileName); // Locate the file
 
-        // Ensure the file exists before trying to read it
-        if (!file.exists()) {
-            showError("File Not Found", "The file '" + fileName + "' does not exist.");
-            return ""; // Return empty content if the file doesn't exist
-        }
 
-        // Read the file content
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
+    private void switchToFile(String newFileName) {
+        fileContentMap.put(currentFileName, codeArea.getText());
+        currentFileName = newFileName;
+        codeArea.replaceText(fileContentMap.getOrDefault(newFileName, ""));
+        fileListView.getSelectionModel().select(newFileName);
+    }
+
+    private void initializeFileListView() {
+        fileListView.setCellFactory(lv -> new ListCell<String>() {
+            private final HBox hbox = new HBox();
+            private final Label fileNameLabel = new Label();
+            private final Label closeButton = new Label("✕"); // Unicode for 'X'
+            private final Region spacer = new Region(); // Spacer to push the close button to the end
+
+            {
+                // Styling the close button
+                closeButton.setStyle(
+                        "-fx-text-fill: #2c3e50; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                );
+
+                // Hover effect for the close button
+                closeButton.setOnMouseEntered(e -> closeButton.setStyle(
+                        "-fx-text-fill: red; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                ));
+
+                closeButton.setOnMouseExited(e -> closeButton.setStyle(
+                        "-fx-text-fill: #2c3e50; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-cursor: hand; " +
+                                "-fx-padding: 0 0 0 5px;"
+                ));
+
+                // Action when close button is clicked
+                closeButton.setOnMouseClicked(e -> {
+                    String item = getItem();
+                    if (item != null) {
+                        fileListView.getItems().remove(item);
+                        if (item.equals(currentFileName)) {
+                            currentFileName = null;
+                            codeArea.clear();
+                        }
+                    }
+                });
+
+                // Configure the HBox layout
+                HBox.setHgrow(spacer, Priority.ALWAYS); // Spacer will take up all available space
+                hbox.getChildren().addAll(fileNameLabel, spacer, closeButton);
+                hbox.setAlignment(Pos.CENTER_LEFT);
             }
-        } catch (IOException e) {
-            showError("Error Reading File", e.getMessage());
-        }
 
-        return content.toString();
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    fileNameLabel.setText(item);
+                    setGraphic(hbox);
+                    setStyle(
+                            "-fx-padding: 10px 14px; " +
+                                    "-fx-font-size: 14px; " + // Default font size
+                                    "-fx-font-family: 'Segoe UI', sans-serif; " +
+                                    "-fx-text-fill: #2c3e50; " + /* Dark blue text */
+                                    "-fx-background-color: transparent; " + // Transparent background for items
+                                    "-fx-transition: all 0.3s ease-in-out;"
+                    );
+
+                    // Hover Effect: Light glow around the item with shadow
+                    setOnMouseEntered(e -> {
+                        if (isSelected()) {
+                            // Apply both selection and hover styles
+                            setStyle(
+                                    "-fx-background-color: rgba(173, 216, 230, 0.5); " + /* Slightly transparent light blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                            );
+                        } else {
+                            // Apply only hover style
+                            setStyle(
+                                    "-fx-background-color: rgba(173, 216, 230, 0.3); " + /* Soft transparent light blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5);"  // Subtle shadow for glowing effect
+                            );
+                        }
+                    });
+
+                    setOnMouseExited(e -> {
+                        if (isSelected()) {
+                            // Revert to selection style only
+                            setStyle(
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                            );
+                        } else {
+                            // Revert to default style
+                            setStyle(
+                                    "-fx-background-color: transparent; " +
+                                            "-fx-text-fill: #2c3e50; " +
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: none;"
+                            );
+                        }
+                    });
+
+                    // Selection Effect: Deep blue with stronger glow, larger font size, and darker shadow
+                    selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+                        if (isSelected) {
+                            setStyle(
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                            "-fx-text-fill: white; " +
+                                            "-fx-font-weight: bold; " +
+                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                            );
+                        } else {
+                            setStyle(
+                                    "-fx-background-color: transparent; " +
+                                            "-fx-text-fill: #2c3e50; " +
+                                            "-fx-font-size: 14px; " + // Reset to default font size
+                                            "-fx-padding: 10px 14px; " +
+                                            "-fx-effect: none;"
+                            );
+                        }
+                    });
+                }
+            }
+        });
+
+        // Customizing File ListView Appearance
+        fileListView.setStyle(
+                "-fx-background-color: rgba(173, 216, 230, 0.2); " + // Slightly transparent light blue background
+                        "-fx-border-color: transparent; " + // Remove border
+                        "-fx-padding: 0; " + // Remove padding
+                        "-fx-effect: none;" // Remove shadow effect
+        );
+
+        // Selection Handling
+        fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.equals(currentFileName)) {
+                switchToFile(newVal);
+            }
+        });
     }
 
 
     private void openFile(Stage stage) {
+        if (hasUnsavedChanges()) {
+            promptSaveChanges(stage);
+        }
+
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open File");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
+        fileChooser.setTitle("Open File");
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
-            String fileName = file.getName();
-            if (!fileListView.getItems().contains(fileName)) {
-                fileListView.getItems().add(fileName);
-                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                    StringBuilder content = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        content.append(line).append("\n");
-                    }
-                    fileContents.put(fileName, content.toString());
-                    currentFileName = fileName;
-                    codeArea.replaceText(content.toString());
-                } catch (IOException e) {
-                    showError("Error opening file", e.getMessage());
+            String newFileName = file.getName();
+            if (!fileListView.getItems().contains(newFileName)) {
+                fileListView.getItems().add(newFileName);
+            }
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                StringBuilder content = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
                 }
+                fileContentMap.put(newFileName, content.toString());
+                switchToFile(newFileName);
+            } catch (IOException e) {
+                showError("Error opening file", e.getMessage());
             }
         }
     }
-
 
     private void saveFile(Stage stage) {
-        if (currentFileName != null) {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Save File");
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
-            File file = fileChooser.showSaveDialog(stage);
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("C++ Files", "*.cpp"));
 
-            if (file != null) {
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-                    writer.write(codeArea.getText());
-                    fileContents.put(currentFileName, codeArea.getText());
-                } catch (IOException e) {
-                    showError("Error saving file", e.getMessage());
+        File file = fileChooser.showSaveDialog(stage);
+
+        if (file != null) {
+            if (!file.getName().endsWith(".cpp")) {
+                file = new File(file.getAbsolutePath() + ".cpp");
+            }
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                String content = codeArea.getText();
+                writer.write(content);
+
+                boolean isUntitled = currentFileName.startsWith("Untitled");
+                if (isUntitled) {
+                    fileListView.getItems().remove(currentFileName);
+                    fileContentMap.remove(currentFileName);
                 }
+
+                String newFileName = file.getName();
+                fileListView.getItems().add(newFileName);
+                fileContentMap.put(newFileName, content);
+                switchToFile(newFileName);
+            } catch (IOException e) {
+                showError("Error saving file", e.getMessage());
             }
         }
     }
 
+    private void newFile(Stage stage) {
+        String newFileName = "Untitled" + (fileListView.getItems().size() + 1);
+        fileListView.getItems().add(newFileName);
+        fileContentMap.put(newFileName, "");
+        switchToFile(newFileName);
+    }
 
+    private void closeFile(Stage stage) {
+        if (hasUnsavedChanges()) {
+            promptSaveChanges(stage);
+        }
+
+        int currentFileIndex = fileListView.getItems().indexOf(currentFileName);
+        fileListView.getItems().remove(currentFileName);
+        fileContentMap.remove(currentFileName);
+
+        if (fileListView.getItems().isEmpty()) {
+            String newFileName = "Untitled1";
+            fileListView.getItems().add(newFileName);
+            fileContentMap.put(newFileName, "");
+            switchToFile(newFileName);
+        } else {
+            int previousFileIndex = Math.max(0, currentFileIndex - 1);
+            String newFileName = fileListView.getItems().get(previousFileIndex);
+            switchToFile(newFileName);
+        }
+    }
+
+    private boolean hasUnsavedChanges() {
+        String savedContent = fileContentMap.get(currentFileName);
+        String currentContent = codeArea.getText();
+        return savedContent == null || !currentContent.equals(savedContent);
+    }
+
+    private void promptSaveChanges(Stage stage) {
+        Alert alert = new Alert(AlertType.CONFIRMATION);
+        alert.setTitle("Unsaved Changes");
+        alert.setHeaderText("You have unsaved changes.");
+        alert.setContentText("Do you want to save them before proceeding?");
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            saveFile(stage);
+        }
+    }
 
 
     private void runCode() {
@@ -1505,6 +1939,7 @@ public class CustomIDE extends Application {
         }).start();
     }
 
+
     private void deleteCode() {
         codeArea.clear();
         outputArea.clear();
@@ -1529,127 +1964,108 @@ public class CustomIDE extends Application {
     private void codeAnalyze() {
         String code = codeArea.getText();
 
+        // Basic metrics
         int lines = code.split("\n").length;
         int words = code.split("\\s+").length;
         int characters = code.length();
 
+        // Data structures for analysis
         Set<String> variablesSet = new HashSet<>();
         Set<String> functionsSet = new HashSet<>();
         Set<String> classesSet = new HashSet<>();
         Set<String> dataStructuresSet = new HashSet<>();
         Set<String> algorithmsSet = new HashSet<>();
 
-        Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool)\\s+\\w+");
+        // Regex patterns
+        Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool|auto)\\s+(\\w+)\\b(?!\\s*\\()");
+
+        Pattern classPattern = Pattern.compile("\\b(class|struct)\\s+(\\w+)");
+        Pattern functionPattern = Pattern.compile("\\b(\\w+)\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*(?:\\{|\\n)");
+        Pattern dataStructurePattern = Pattern.compile("\\b(vector|list|deque|set|map|unordered_map|unordered_set|stack|queue|priority_queue|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|pair)\\b");
+        Pattern algorithmPattern = Pattern.compile("\\b(sort|find|binary_search|count|accumulate|reverse|shuffle|lower_bound|upper_bound|merge|quick_sort|dijkstra|kruskal|prim|floyd_warshall)\\b");
+
+        // Analyze variables
         Matcher variableMatcher = variablePattern.matcher(code);
         StringBuilder variables = new StringBuilder("Variables Created:\n");
         while (variableMatcher.find()) {
-            String variable = variableMatcher.group();
+            String variable = variableMatcher.group(2); // Capture variable name
             if (variablesSet.add(variable)) {
                 variables.append(variable).append("\n");
             }
         }
+        if (variablesSet.isEmpty()) {
+            variables.append("None\n");
+        }
 
-        Pattern classPattern = Pattern.compile("\\bclass\\s+\\w+");
+        // Analyze classes and structs
         Matcher classMatcher = classPattern.matcher(code);
-        StringBuilder classes = new StringBuilder("Classes Defined:\n");
+        StringBuilder classes = new StringBuilder("Classes/Structs Defined:\n");
         while (classMatcher.find()) {
-            String className = classMatcher.group();
+            String className = classMatcher.group(2); // Capture class/struct name
             if (classesSet.add(className)) {
                 classes.append(className).append("\n");
             }
         }
-        if (classes.length() == "Classes Defined:\n".length()) {
+        if (classesSet.isEmpty()) {
             classes.append("None\n");
         }
 
-        Pattern functionPattern = Pattern.compile("\\b\\w+\\s+\\w+\\s*\\([^\\)]*\\)\\s*\\{");
+        // Analyze functions
         Matcher functionMatcher = functionPattern.matcher(code);
         StringBuilder functions = new StringBuilder("Functions Defined:\n");
         while (functionMatcher.find()) {
-            String function = functionMatcher.group();
-            if (functionsSet.add(function)) {
-                functions.append(function).append("\n");
+            String functionName = functionMatcher.group(2); // Capture function name
+            if (functionsSet.add(functionName)) {
+                functions.append(functionName).append("\n");
             }
         }
-        if (functions.length() == "Functions Defined:\n".length()) {
+        if (functionsSet.isEmpty()) {
             functions.append("None\n");
         }
 
+        // Analyze data structures
+        Matcher dataStructureMatcher = dataStructurePattern.matcher(code);
         StringBuilder dataStructures = new StringBuilder("Data Structures Used:\n");
-        if (code.contains("vector") && dataStructuresSet.add("Vector (Dynamic Array)")) {
-            dataStructures.append("Vector (Dynamic Array)\n");
+        while (dataStructureMatcher.find()) {
+            String dataStructure = dataStructureMatcher.group();
+            if (dataStructuresSet.add(dataStructure)) {
+                dataStructures.append(dataStructure).append("\n");
+            }
         }
-        if (code.contains("list") && dataStructuresSet.add("List (Linked List)")) {
-            dataStructures.append("List (Linked List)\n");
-        }
-        if (code.contains("map") && dataStructuresSet.add("Map (Hash Map)")) {
-            dataStructures.append("Map (Hash Map)\n");
-        }
-        if (code.contains("set") && dataStructuresSet.add("Set (Hash Set)")) {
-            dataStructures.append("Set (Hash Set)\n");
-        }
-        if (code.contains("array") && dataStructuresSet.add("Array")) {
-            dataStructures.append("Array\n");
-        }
-        if (code.contains("stack") && dataStructuresSet.add("Stack")) {
-            dataStructures.append("Stack\n");
-        }
-        if (code.contains("queue") && dataStructuresSet.add("Queue")) {
-            dataStructures.append("Queue\n");
-        }
-        if (code.contains("priority_queue") && dataStructuresSet.add("Priority Queue")) {
-            dataStructures.append("Priority Queue\n");
-        }
-        if (code.contains("deque") && dataStructuresSet.add("Deque (Double-ended Queue)")) {
-            dataStructures.append("Deque (Double-ended Queue)\n");
-        }
-        if (dataStructures.length() == "Data Structures Used:\n".length()) {
+        if (dataStructuresSet.isEmpty()) {
             dataStructures.append("None\n");
         }
 
+        // Analyze algorithms
+        Matcher algorithmMatcher = algorithmPattern.matcher(code);
         StringBuilder algorithms = new StringBuilder("Algorithms Detected:\n");
-        if (code.contains("sort") && algorithmsSet.add("Sorting Algorithm (e.g., std::sort)")) {
-            algorithms.append("Sorting Algorithm (e.g., std::sort)\n");
+        while (algorithmMatcher.find()) {
+            String algorithm = algorithmMatcher.group();
+            if (algorithmsSet.add(algorithm)) {
+                algorithms.append(algorithm).append("\n");
+            }
         }
-        if (code.contains("binary_search") && algorithmsSet.add("Binary Search Algorithm")) {
-            algorithms.append("Binary Search Algorithm\n");
-        }
-        if (code.contains("reverse") && algorithmsSet.add("Reversal Algorithm (e.g., std::reverse)")) {
-            algorithms.append("Reversal Algorithm (e.g., std::reverse)\n");
-        }
-        if (code.contains("merge") && algorithmsSet.add("Merge Sort Algorithm")) {
-            algorithms.append("Merge Sort Algorithm\n");
-        }
-        if (code.contains("quick_sort") && algorithmsSet.add("Quick Sort Algorithm")) {
-            algorithms.append("Quick Sort Algorithm\n");
-        }
-        if (code.contains("dijkstra") && algorithmsSet.add("Dijkstra's Shortest Path Algorithm")) {
-            algorithms.append("Dijkstra's Shortest Path Algorithm\n");
-        }
-        if (code.contains("kruskal") && algorithmsSet.add("Kruskal's Minimum Spanning Tree Algorithm")) {
-            algorithms.append("Kruskal's Minimum Spanning Tree Algorithm\n");
-        }
-        if (code.contains("prim") && algorithmsSet.add("Prim's Minimum Spanning Tree Algorithm")) {
-            algorithms.append("Prim's Minimum Spanning Tree Algorithm\n");
-        }
-        if (code.contains("floyd_warshall") && algorithmsSet.add("Floyd-Warshall Algorithm (All-Pairs Shortest Path)")) {
-            algorithms.append("Floyd-Warshall Algorithm (All-Pairs Shortest Path)\n");
-        }
-        if (algorithms.length() == "Algorithms Detected:\n".length()) {
+        if (algorithmsSet.isEmpty()) {
             algorithms.append("None\n");
         }
 
+        // Feedback for code quality
         String feedback = "Feedback:\n"
                 + "1. Ensure variable names are meaningful and self-explanatory.\n"
                 + "2. Use comments to describe complex logic.\n"
                 + "3. Follow consistent indentation and spacing for readability.\n"
                 + "4. Avoid deeply nested loops; consider breaking into smaller functions.\n"
-                + "5. Use appropriate data structures and algorithms for efficient code.\n";
+                + "5. Use appropriate data structures and algorithms for efficient code.\n"
+                + "6. Avoid global variables; prefer local scope where possible.\n"
+                + "7. Use const-correctness for variables and functions where applicable.\n";
 
+        // Compile analysis results
         String analysis = String.format(
                 "Code Analysis:\nLines: %d\nWords: %d\nCharacters: %d\n\n%s\n%s\n%s\n%s\n%s\n\n%s",
                 lines, words, characters, variables.toString(), classes.toString(), functions.toString(),
                 dataStructures.toString(), algorithms.toString(), feedback);
+
+        // Display results in the output area// Replace with actual analysis
         outputArea.setText(analysis);
     }
 
@@ -1695,50 +2111,69 @@ public class CustomIDE extends Application {
             );
             formattedCode.append(formattedFunction).append("\n\n");
         }
-        String finalFormattedCode = formattedCode.toString().trim();
-        codeArea.replaceText(finalFormattedCode);
+        // Replace with actual formatted code
+        codeArea.replaceText(String.valueOf(formattedCode));
         outputArea.setText("Code formatted successfully!");
     }
 
 
     private void appDocumentation() {
+        // Create a TextArea for documentation
         TextArea docTextArea = new TextArea();
         docTextArea.setText(
-                "Welcome to Enhanced IDE!\n\n"
-                        + "Features:\n"
-                        + "1. Code Editing: Write your C++ code with syntax highlighting.\n"
-                        + "2. File Operations: Open, save, or create new files directly in the IDE.\n"
-                        + "3. Run Code: Compile and execute C++ code with support for input/output.\n"
-                        + "4. Debug Code: Debug your code using the integrated GDB support.\n"
-                        + "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n"
-                        + "6. Format Code: Automatically format your code for readability.\n"
-                        + "7. Documentation: View app features and functionality.\n\n"
-                        + "Developed by: Taz, Jamil, Rihin\nVersion: 1.0"
+                "Welcome to Enhanced IDE!\n\n" +
+                        "Features:\n" +
+                        "1. Code Editing: Write your C++ code with syntax highlighting.\n" +
+                        "2. File Operations: Open, save, or create new files directly in the IDE.\n" +
+                        "3. Run Code: Compile and execute C++ code with support for input/output.\n" +
+                        "4. Debug Code: Debug your code using the integrated GDB support.\n" +
+                        "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n" +
+                        "6. Format Code: Automatically format your code for readability.\n" +
+                        "7. Documentation: View app features and functionality.\n\n" +
+                        "Keyboard Shortcuts:\n" +
+                        "- Ctrl + S: Save the current file\n" +
+                        "- Ctrl + O: Open a file\n" +
+                        "- Ctrl + N: Create a new file\n" +
+                        "- Ctrl + R: Run the code\n" +
+                        "- Ctrl + D: Debug the code\n" +
+                        "- Ctrl + Z: Undo\n" +
+                        "- Ctrl + Y: Redo\n\n" +
+                        "Developed by: Taz, Jamil, Rihin\n" +
+                        "Version: 1.0\n" +
+                        "License: MIST"
         );
-        docTextArea.setEditable(false);
-        docTextArea.setWrapText(true);
+        docTextArea.setEditable(false); // Make it read-only
+        docTextArea.setWrapText(true); // Enable text wrapping
+        docTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 18px;"); // Monospace font for better readability
+
+        // Create a ScrollPane to handle overflow
         ScrollPane scrollPane = new ScrollPane(docTextArea);
-        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToWidth(true); // Fit the width of the TextArea
+        scrollPane.setPrefSize(600, 400); // Set preferred size for the dialog
+
+        // Create an Alert dialog for documentation
         Alert docAlert = new Alert(Alert.AlertType.INFORMATION);
         docAlert.setTitle("Application Documentation");
         docAlert.setHeaderText("Enhanced IDE Documentation");
-        docAlert.getDialogPane().setContent(scrollPane);
+        docAlert.getDialogPane().setContent(scrollPane); // Add the ScrollPane to the dialog
+        docAlert.getDialogPane().setPrefSize(620, 420); // Set preferred size for the dialog pane
+
+        // Show the dialog and wait for user interaction
         docAlert.showAndWait();
     }
 
     private void applySyntaxHighlighting(String text) {
-        // Define regex patterns for keywords, types, comments, strings, etc.
-        String keywordPattern = "\\b(int|double|float|char|bool|void|if|else|while|for|return|using|namespace|include|std|cin|cout|vector|endl|main)\\b";
+
+        String keywordPattern = "\\b(int|double|float|char|bool|void|if|else|while|for|return|using|namespace|include|std|cin|cout|vector|endl|main|class|struct|template|typename|public|private|protected|const|static|virtual|inline|enum|union|decltype|auto|nullptr)\\b";
         String commentPattern = "//[^\n]*|/\\*(.|\\R)*?\\*/";
         String stringPattern = "\"([^\"\\\\]|\\\\.)*\"";
         String numberPattern = "\\b(\\d+\\.\\d*|\\d*\\.\\d+|\\d+|0x[0-9a-fA-F]+|0b[01]+|0[0-7]+)\\b";
-        String headerPattern = "<[^>]{1,20}>";  // Limited to 20 characters
+        String headerPattern = "#\\s*include\\s*.*";
         String inbuildValueTypePattern = "\\b(true|false|NULL|INT_MAX|INT_MIN|SIZE_MAX|FLT_MAX|DBL_MAX|LDBL_MAX|NaN|INF)\\b";
         String symbolPattern = "[,\\=\\+\\-\\*\\/\\;\\#\\<>\\(\\)\\{\\}\\[\\]]|[&|!%<>\\?\\:\\=\\^\\~\\.,]";
         String variablePattern = "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b";
         String builtinPattern = "\\b(cin|cout|endl)\\b";
-        String typePattern = "\\b(string|vector|list|deque|set|map|unordered_map|unordered_set|pair|queue|stack|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|complex|class|public|private|protected|const|static|virtual|inline|typename|enum|struct|union|decltype|auto|nullptr)\\b";
-
+        String typePattern = "\\b(string|vector|list|deque|set|map|unordered_map|unordered_set|pair|queue|stack|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|complex)\\b";
 
         String stlFunctionPattern = "\\b([a-zA-Z_][a-zA-Z0-9_]*\\." +
                 "pair\\.first|pair\\.second|" +
@@ -1781,14 +2216,12 @@ public class CustomIDE extends Application {
                         + "|(?<BUILTIN>" + builtinPattern + ")"
         );
 
-        // Matcher to find all patterns in the input text
+
         Matcher matcher = pattern.matcher(text);
 
-        // StyleSpansBuilder to collect style information
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
         int lastMatchEnd = 0;
 
-        // Iterate through all the matched groups
         while (matcher.find()) {
             String styleClass = null;
 
@@ -1825,7 +2258,6 @@ public class CustomIDE extends Application {
 
         spansBuilder.add(Collections.emptyList(), text.length() - lastMatchEnd);
 
-        // Apply the collected style spans to the code area
         StyleSpans<Collection<String>> styleSpans = spansBuilder.create();
         codeArea.setStyleSpans(0, styleSpans);
     }
