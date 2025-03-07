@@ -1,8 +1,6 @@
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -12,10 +10,7 @@ import javafx.scene.Scene;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import javafx.scene.control.ListView;
@@ -24,8 +19,6 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
@@ -37,41 +30,22 @@ import java.util.regex.Matcher;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
-import javafx.stage.Stage;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.geometry.Orientation;
-import javafx.stage.FileChooser;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
-import javafx.scene.control.ListView;
-import javafx.scene.control.Alert;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-import java.io.*;
-import java.util.*;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import java.util.Optional;
 import javafx.scene.control.TextArea;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class CustomIDE extends Application {
 
@@ -88,7 +62,6 @@ public class CustomIDE extends Application {
     private Map<String, Rectangle> variableBoxes = new HashMap<>();
     private Map<String, Text> variableTexts = new HashMap<>();
     private Map<String, String> fileContentMap = new HashMap<>();
-    private Map<String, File> fileMap = new HashMap<>();
     @Override
     public void start(Stage primaryStage) {
         Stage splashStage = new Stage();
