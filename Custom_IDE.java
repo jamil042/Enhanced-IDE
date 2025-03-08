@@ -1,9 +1,11 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
@@ -165,33 +167,186 @@ public class Custom_IDE extends Application {
         stage.setY(centerY);
     }
 
+
     private VBox createVisualizationWorkarea() {
         VBox visualizationBox = new VBox(10);
-        visualizationBox.setPadding(new javafx.geometry.Insets(10));
+        visualizationBox.setPadding(new Insets(10));
+        visualizationBox.setStyle("-fx-background-color: #cdf7e9; -fx-border-color: #ccc; -fx-border-width: 1px;");
 
-        // Label to display the current line of code
-        currentLineLabel = new Label("Current Line: ");
-        currentLineLabel.setFont(Font.font(14));
+        currentLineLabel = new Label("Current Line:");
+        currentLineLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        currentLineLabel.setStyle(
+                "-fx-text-fill: white; " +
+                        "-fx-background-color: #16a085; " +
+                        "-fx-padding: 10px 15px; " +
+                        "-fx-border-radius: 8px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-border-color: #1abc9c; " +
+                        "-fx-border-width: 2px; "
+        );
 
-        // Pane for visualization
+        DropShadow redGlow = new DropShadow();
+        redGlow.setColor(Color.rgb(255, 68, 68, 0.8));
+        redGlow.setRadius(10);
+        redGlow.setSpread(0.6);
+
+        Button closeButton = new Button("✕");
+        closeButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #ff4444; " + // Initial background color
+                        "-fx-padding: 5px 10px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+
+// On hover, change color and add red glow
+        closeButton.setOnMouseEntered(e -> {
+            closeButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #f74d4d; " + // Darker red on hover
+                            "-fx-padding: 5px 10px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            closeButton.setEffect(redGlow); // Apply red glow effect
+        });
+
+// On mouse exit, reset color and remove glow
+        closeButton.setOnMouseExited(e -> {
+            closeButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #ff4444; " + // Reset to original color
+                            "-fx-padding: 5px 10px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            closeButton.setEffect(null); // Remove glow effect
+        });
+
+// Define button action
+        closeButton.setOnAction(e -> toggleVisualization());
+
+
+        // Create spacer to push close button to right
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox topBar = new HBox(10, currentLineLabel, spacer, closeButton);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+
+        // Visualization Pane - Remove black borders
         visualizationPane = new Pane();
-        visualizationPane.setPrefSize(1000, 500);
-        visualizationPane.setStyle("-fx-background-color: #f0f0f0;");
+        visualizationPane.setMinSize(800, 500);
+        visualizationPane.setStyle("-fx-background-color: #e1eff7;");
 
-        // Buttons for navigation
+        // ScrollPane Configuration
+        ScrollPane scrollPane = new ScrollPane(visualizationPane);
+        scrollPane.setFitToWidth(false);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setStyle("-fx-background: #f0f0f0;");
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+
+        DropShadow glowEffect = new DropShadow();
+        glowEffect.setColor(Color.rgb(76, 175, 80, 0.8)); // Green glow matching #4CAF50
+        glowEffect.setRadius(10);
+        glowEffect.setSpread(0.5);
+
         Button nextButton = new Button("Next");
-        Button prevButton = new Button("Previous");
-
+        nextButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-padding: 8px 16px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+        nextButton.setOnMouseEntered(e -> {
+            nextButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            nextButton.setEffect(glowEffect);
+        });
+        nextButton.setOnMouseExited(e -> {
+            nextButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            nextButton.setEffect(null); // Remove glow effect
+        });
         nextButton.setOnAction(e -> visualizeNextLine());
+
+        Button prevButton = new Button("Previous");
+        prevButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-padding: 8px 16px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+        prevButton.setOnMouseEntered(e -> {
+            prevButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            prevButton.setEffect(glowEffect); // FIXED: Apply glow effect to prevButton
+        });
+        prevButton.setOnMouseExited(e -> {
+            prevButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            prevButton.setEffect(null); // Remove glow effect
+        });
         prevButton.setOnAction(e -> visualizePreviousLine());
 
+
         HBox buttonBox = new HBox(10, prevButton, nextButton);
+        buttonBox.setAlignment(Pos.CENTER);
 
-        // Add components to the visualization box
-        visualizationBox.getChildren().addAll(currentLineLabel, visualizationPane, buttonBox);
-
+        visualizationBox.getChildren().addAll(topBar, scrollPane, buttonBox);
         return visualizationBox;
     }
+
 
     private void toggleVisualization() {
         isVisualizationVisible = !isVisualizationVisible;
@@ -266,15 +421,38 @@ public class Custom_IDE extends Application {
 
             // Draw variable box
             if (variableBoxes.containsKey(varName)) {
-                variableTexts.get(varName).setText(varName + " = " + value); // Update text directly
+                // Update existing variable box
+                Text varText = variableTexts.get(varName);
+                varText.setText(varName + " = " + value);
             } else {
-                // **New variable: Create UI elements**
-                Rectangle rect = new Rectangle(10, 50 + (variables.size() - 1) * 40, 100, 30);
-                rect.setFill(Color.LIGHTBLUE);
-                rect.setStroke(Color.BLACK);
+                // Calculate position for new variable box
+                double startX = 10; // Start X position
+                double startY = 50 + (variables.size() - 1) * 50; // Adjust Y position dynamically
 
-                Text varText = new Text(15, 70 + (variables.size() - 1) * 40, varName + " = " + value);
+                Rectangle rect = new Rectangle(startX, startY, 120, 30);
+                rect.setFill(Color.LIGHTBLUE);
+                rect.setStroke(Color.BLACK);  // <--- THIS CREATES BLACK BORDER
+                rect.setArcWidth(10);
+                rect.setArcHeight(10);
+
+                rect.setStroke(null);
+
+                double requiredHeight = startY + 50; // New bottom edge of the variable box
+                if (visualizationPane.getPrefHeight() < requiredHeight) {
+                    visualizationPane.setPrefHeight(requiredHeight); // Expand pane height
+                }
+
+                double requiredWidth = startX + 130; // New right edge of the variable box
+                if (visualizationPane.getPrefWidth() < requiredWidth) {
+                    visualizationPane.setPrefWidth(requiredWidth); // Expand pane width
+                }
+
+                Text varText = new Text(startX + 10, startY + 20, varName + " = " + value);
                 varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+
+                rect.setOnMouseEntered(e -> rect.setFill(Color.LIGHTGREEN));  // Hover color
+                rect.setOnMouseExited(e -> rect.setFill(Color.LIGHTBLUE));    // Normal color
 
                 visualizationPane.getChildren().addAll(rect, varText);
                 variableBoxes.put(varName, rect);
@@ -285,7 +463,9 @@ public class Custom_IDE extends Application {
                     visualizeDataStructure(varName, value, type);
                 }
             }
-        } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
+        }
+
+        else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
             // Handle assignments
             String[] parts = currentLine.split("=");
             String varName = parts[0].trim();
@@ -802,12 +982,14 @@ public class Custom_IDE extends Application {
     private void handleLogicalAndOperator(String currentLine) {
         // Implementation for handling logical AND operator
     }
+
+
     private void visualizeDataStructure(String varName, Object value, String type) {
-        // Clear previous visualization for this data structure
+
         visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
         visualizationPane.getChildren().removeIf(node -> node instanceof Text && node.getUserData() != null && node.getUserData().equals(varName));
 
-        // Position the data structure visualization closer to the variable name
+        // Position the data structure visualization
         double startX = 150; // Start X position for data structure visualization
         double startY = 50 + (variables.size() - 1) * 40;
 
@@ -817,6 +999,8 @@ public class Custom_IDE extends Application {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
                 rect.setFill(Color.LIGHTGREEN);
                 rect.setStroke(Color.BLACK);
+                rect.setArcWidth(5); // Rounded corners
+                rect.setArcHeight(5);
                 rect.setUserData(varName); // Tag the rectangle with the variable name
 
                 Text charText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(strValue.charAt(i)));
@@ -829,7 +1013,9 @@ public class Custom_IDE extends Application {
 
                 visualizationPane.getChildren().addAll(rect, charText, indexText);
             }
-        } else if (type.equals("int[]")) {
+        }
+
+        else if (type.equals("int[]")) {
             int[] arrayValue = (int[]) value;
             for (int i = 0; i < arrayValue.length; i++) {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
