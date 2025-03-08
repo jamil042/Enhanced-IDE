@@ -1,18 +1,20 @@
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.*;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import javafx.scene.control.ListView;
@@ -65,6 +67,7 @@ public class Custom_IDE extends Application {
     private Map<String, Rectangle> variableBoxes = new HashMap<>();
     private Map<String, Text> variableTexts = new HashMap<>();
     private Map<String, String> fileContentMap = new HashMap<>();
+    private IntegerProperty currentLineProperty = new SimpleIntegerProperty(-1);
 
 
     @Override
@@ -144,6 +147,12 @@ public class Custom_IDE extends Application {
                 // Create the visualization work area (but don't add it yet)
                 visualizationWorkarea = createVisualizationWorkarea();
 
+                // In the Main class constructor or initialization
+                currentLineProperty.addListener((obs, oldVal, newVal) -> {
+                    Platform.runLater(() -> {
+                        codeArea.requestLayout();
+                    });
+                });
                 // Set up the root layout
                 root.setTop(menuBar);
                 root.setCenter(mainSplitPane);
@@ -366,9 +375,11 @@ public class Custom_IDE extends Application {
         }
     }
 
+
     private void visualizeNextLine() {
         if (currentLineIndex < codeLines.size() - 1) {
             currentLineIndex++;
+            currentLineProperty.set(currentLineIndex);
             updateVisualization();
         }
     }
@@ -376,6 +387,7 @@ public class Custom_IDE extends Application {
     private void visualizePreviousLine() {
         if (currentLineIndex > 0) {
             currentLineIndex--;
+            currentLineProperty.set(currentLineIndex);
             updateVisualization();
         }
     }
@@ -1304,10 +1316,8 @@ public class Custom_IDE extends Application {
     private void startVisualization() {
         initializeCodeLines();
         currentLineIndex = 0;
+        currentLineProperty.set(currentLineIndex);
         updateVisualization();
-        for (Map.Entry<String, Object> entry : variables.entrySet()) {
-            visualizeArray(entry.getKey(), entry.getValue());
-        }
     }
 
 
@@ -1384,13 +1394,35 @@ public class Custom_IDE extends Application {
         lightMode.setOnAction(e -> applyLightMode());
         darkMode.setOnAction(e -> applyDarkMode());
         visualizeCode.setOnAction(e -> toggleVisualization());
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
 
         return menuBar;
     }
 
     private CodeArea createCodeArea() {
         CodeArea codeArea = new CodeArea();
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+
+        // Set the custom paragraph graphic factory with the red arrow and line numbers
+        codeArea.setParagraphGraphicFactory(paraIdx -> {
+            HBox hbox = new HBox();
+            hbox.setSpacing(5);
+            hbox.setStyle("-fx-background-color: #D3D3D3; -fx-padding: 2px;"); // Gray background
+
+            // Red arrow indicator
+            Label arrow = new Label("➤"); // Thicker arrow
+            arrow.setStyle("-fx-text-fill: red; -fx-font-size: 18px; -fx-font-weight: bold;");
+            arrow.visibleProperty().bind(currentLineProperty.isEqualTo(paraIdx));
+
+            // Line number
+            Label lineNumber = new Label(String.valueOf(paraIdx + 1));
+            lineNumber.setStyle("-fx-font-family: monospace; -fx-font-size: 14px;");
+
+            hbox.getChildren().addAll(arrow, lineNumber);
+            return hbox;
+        });
+
+        // Syntax highlighting listener
         codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
 
         // Default font size
@@ -1400,7 +1432,7 @@ public class Custom_IDE extends Application {
         codeArea.styleProperty().bind(Bindings.concat(
                 "-fx-font-family: 'Courier New', 'Courier', 'monospace'; ",
                 "-fx-font-size: ", fontSize.asString(), "px; ",
-                "-fx-text-fill: #000000;" // Changed text color to black for better visibility
+                "-fx-text-fill: #000000;"
         ));
 
         // Handle Zoom In / Zoom Out using Mouse Scroll + Ctrl
@@ -1431,8 +1463,11 @@ public class Custom_IDE extends Application {
             }
         });
 
+        // Apply light mode by default
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+
+        // Handle auto-formatting for braces, parentheses, and brackets
         codeArea.setOnKeyTyped(event -> {
             String typedChar = event.getCharacter();
             if (typedChar.isEmpty()) return;
@@ -1449,28 +1484,90 @@ public class Custom_IDE extends Application {
                     break;
             }
         });
+
         return codeArea;
     }
+
+
+    private void showComplexityPane(String complexityType, String complexityValue) {
+        Stage complexityStage = new Stage();
+        complexityStage.initStyle(StageStyle.TRANSPARENT); // Removes window decorations
+
+        // Main label for complexity value
+        Label complexityLabel = new Label(complexityValue);
+        complexityLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 26)); // Bigger & bold text
+        complexityLabel.setTextFill(Color.WHITE); // White text
+        complexityLabel.setPadding(new Insets(15));
+
+        // Subtle glow effect without making text blurry
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.WHITE);
+        glow.setRadius(3);  // Reduced glow radius for sharper text
+        glow.setSpread(0.2); // Less spread for subtle effect
+        glow.setBlurType(BlurType.GAUSSIAN); // Keeps text smooth and clear
+        complexityLabel.setEffect(glow);
+
+        // **New Top Banner for Complexity Type with Full Name**
+        String fullComplexityType = complexityType.equalsIgnoreCase("Time") ? "Time Complexity" :
+                complexityType.equalsIgnoreCase("Space") ? "Space Complexity" : complexityType;
+
+        Label headerLabel = new Label(fullComplexityType); // Using full complexity type
+        headerLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 20)); // Bigger text
+        headerLabel.setTextFill(Color.BLACK); // Black text for contrast
+        headerLabel.setAlignment(Pos.TOP_CENTER);
+        headerLabel.setPadding(new Insets(10));
+        headerLabel.setMaxWidth(Double.MAX_VALUE);
+        headerLabel.setStyle("-fx-background-color: yellow;"); // **Yellow strip on top**
+
+        // Main layout
+        VBox layout = new VBox(headerLabel, complexityLabel); // Added header at the top
+        layout.setAlignment(Pos.CENTER);
+        layout.setStyle("-fx-background-color: #000000; -fx-border-color: #444; -fx-border-width: 2px; -fx-border-radius: 8px;");
+        layout.setPadding(new Insets(30)); // Increased padding for a balanced layout
+
+        // Increase the card size
+        double cardWidth = 420;
+        double cardHeight = 260;
+
+        Scene scene = new Scene(layout, cardWidth, cardHeight);
+        scene.setFill(Color.TRANSPARENT);
+        complexityStage.setScene(scene);
+
+        // Set the pane at the center of the screen
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        complexityStage.setX((screenBounds.getWidth() - cardWidth) / 2);
+        complexityStage.setY((screenBounds.getHeight() - cardHeight) / 2);
+
+        // Close the pane when clicking outside
+        scene.setOnMouseClicked(event -> complexityStage.close());
+
+        complexityStage.show();
+    }
+
+
 
     private void calculateTimeComplexity() {
         String code = codeArea.getText();
         String timeComplexity = analyzeTimeComplexity(code);
-        outputArea.setText("Time Complexity: " + timeComplexity);
+        showComplexityPane("Time", timeComplexity);
     }
     private String analyzeTimeComplexity(String code) {
         String[] lines = code.split("\n");
         int maxNestedLoops = 0;
+        int currentDepth = 0;
         boolean hasRecursion = false;
         boolean hasLogarithmicLoop = false;
         boolean hasLinearithmic = false;
         boolean hasDifferentRanges = false;
+        List<String> complexities = new ArrayList<>();
 
         for (String line : lines) {
             line = line.trim();
 
             // Check for loops
             if (line.startsWith("for") || line.startsWith("while")) {
-                maxNestedLoops++;
+                currentDepth++;
+                maxNestedLoops = Math.max(maxNestedLoops, currentDepth);
 
                 // Check for logarithmic loops (e.g., i *= 2 or i /= 2)
                 if (line.contains("*=") || line.contains("/=")) {
@@ -1478,8 +1575,15 @@ public class Custom_IDE extends Application {
                 }
 
                 // Check for different ranges in nested loops
-                if (line.contains("i < n") && line.contains("j < m")) {
+                if (line.contains("i<n") && line.contains("j<m")) {
                     hasDifferentRanges = true;
+                }
+            }
+
+            // Check for end of loop
+            if (line.equals("}")) {
+                if (currentDepth > 0) {
+                    currentDepth--;
                 }
             }
 
@@ -1488,39 +1592,48 @@ public class Custom_IDE extends Application {
                 hasRecursion = true;
             }
 
-            // Check for divide-and-conquer algorithms (e.g., merge sort, quicksort)
-            if (line.contains("mergeSort(") || line.contains("quickSort(")) {
-                hasLinearithmic = true;
+            // Check for built-in functions and their complexities
+            if (line.contains("sort(")) {
+                complexities.add("O(n log n)");
+            } else if (line.contains("binary_search(")) {
+                complexities.add("O(log n)");
+            } else if (line.contains("find(") || line.contains("count(")) {
+                complexities.add("O(n)");
             }
         }
 
-        // Determine the time complexity based on the analysis
+        // Determine the complexity based on the maximum depth of nested loops
         if (maxNestedLoops == 0 && !hasRecursion) {
-            return "O(1)"; // Constant time
+            complexities.add("O(1)"); // Constant time
         } else if (maxNestedLoops == 1 && !hasRecursion) {
             if (hasLogarithmicLoop) {
-                return "O(log n)"; // Logarithmic time
+                complexities.add("O(log n)"); // Logarithmic time
             } else {
-                return "O(n)"; // Linear time
+                complexities.add("O(n)"); // Linear time
             }
         } else if (maxNestedLoops == 2 && !hasRecursion) {
             if (hasDifferentRanges) {
-                return "O(n * m)"; // Different ranges
+                complexities.add("O(n * m)"); // Different ranges
             } else {
-                return "O(n^2)"; // Quadratic time
+                complexities.add("O(n²)"); // Quadratic time
             }
         } else if (hasLinearithmic) {
-            return "O(n log n)"; // Linearithmic time
+            complexities.add("O(n log n)"); // Linearithmic time
         } else if (hasRecursion) {
-            return "O(2^n)"; // Exponential time (for simplicity)
+            complexities.add("O(2ⁿ)"); // Exponential time (for simplicity)
         } else {
-            return "O(n^k)"; // Polynomial time (k = maxNestedLoops)
+            complexities.add("O(n^" + maxNestedLoops + ")"); // Polynomial time (k = maxNestedLoops)
         }
+
+        // Return the maximum complexity
+        return complexities.stream().max(String::compareTo).orElse("O(1)");
     }
+
+
     private void calculateSpaceComplexity() {
         String code = codeArea.getText();
         String spaceComplexity = analyzeSpaceComplexity(code);
-        outputArea.setText("Space Complexity: " + spaceComplexity);
+        showComplexityPane("Space", spaceComplexity);
     }
 
     private String analyzeSpaceComplexity(String code) {
@@ -1600,7 +1713,7 @@ public class Custom_IDE extends Application {
         if (variableCount == 0 && arraySize == 0 && matrixSize == 0 && recursiveDepth == 0 && !hasDynamicAllocation && !hasVector && !has2DVector) {
             return "O(1)"; // Constant space
         } else if (matrixSize > 0 || has2DVector) {
-            return "O(n^2)"; // Quadratic space (due to matrices or 2D vectors)
+            return "O(n²)"; // Quadratic space (due to matrices or 2D vectors)
         } else if (arraySize > 0 || hasVector) {
             return "O(n)"; // Linear space (due to arrays or 1D vectors)
         } else if (hasVector || hasQueue || hasStack || hasLinkedList) {
