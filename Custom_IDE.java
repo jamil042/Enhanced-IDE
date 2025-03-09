@@ -158,7 +158,7 @@ public class Custom_IDE extends Application {
                 root.setCenter(mainSplitPane);
 
                 // Set up the stage
-                Image Icon = new Image(getClass().getResourceAsStream("Project Logo.jpg"));
+                Image Icon = new Image(getClass().getResourceAsStream("IDE_Logo.png"));
                 Scene scene = new Scene(root, 800, 600);
                 primaryStage.setMaximized(true);
                 primaryStage.setScene(scene);
