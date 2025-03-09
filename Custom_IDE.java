@@ -372,6 +372,8 @@ public class Custom_IDE extends Application {
             // Remove visualization pane and reset divider
             mainSplitPane.getItems().remove(visualizationWorkarea);
             mainSplitPane.setDividerPositions(0.02);
+            // Reset current line property to hide the arrow
+            currentLineProperty.set(-1);
         }
     }
 
