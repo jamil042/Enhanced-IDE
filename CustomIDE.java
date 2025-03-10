@@ -1,16 +1,20 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.*;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.geometry.Orientation;
 import javafx.stage.FileChooser;
 import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import javafx.scene.control.ListView;
@@ -22,12 +26,10 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
-
 import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Pos;
@@ -58,10 +60,16 @@ public class CustomIDE extends Application {
     private List<String> codeLines = new ArrayList<>();
     private Pane visualizationPane;
     private Label currentLineLabel;
+    private SplitPane mainSplitPane; // Only declare once
+    private boolean isVisualizationVisible = false;
+    private VBox visualizationWorkarea; // Only declare once
     private Map<String, Object> variables = new HashMap<>();
     private Map<String, Rectangle> variableBoxes = new HashMap<>();
     private Map<String, Text> variableTexts = new HashMap<>();
     private Map<String, String> fileContentMap = new HashMap<>();
+    private IntegerProperty currentLineProperty = new SimpleIntegerProperty(-1);
+
+
     @Override
     public void start(Stage primaryStage) {
         Stage splashStage = new Stage();
@@ -72,7 +80,6 @@ public class CustomIDE extends Application {
         logoView.setFitHeight(600);
         logoView.setPreserveRatio(true);
 
-
         StackPane splashLayout = new StackPane(logoView);
         splashLayout.setStyle("-fx-background-color: white;");
         Scene splashScene = new Scene(splashLayout, 800, 400);
@@ -80,6 +87,7 @@ public class CustomIDE extends Application {
 
         centerStageOnScreen(splashStage);
         splashStage.show();
+
         new Thread(() -> {
             try {
                 Thread.sleep(3000);
@@ -91,7 +99,6 @@ public class CustomIDE extends Application {
                 BorderPane root = new BorderPane();
                 MenuBar menuBar = createMenuBar(primaryStage);
                 codeArea = createCodeArea();
-
 
                 // Create the "Files" label
                 Label filesLabel = new Label("File Section");
@@ -124,18 +131,34 @@ public class CustomIDE extends Application {
                 filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
                 leftPane.setFillWidth(true);
 
-
+                // Create the center split pane (code area, input, output)
                 SplitPane centerSplitPane = createSplitPane();
-                SplitPane mainSplitPane = new SplitPane();
+
+                // Initialize the main split pane (left, center, and visualization)
+                mainSplitPane = new SplitPane();
                 mainSplitPane.setOrientation(Orientation.HORIZONTAL);
+
+                // Add left and center panes initially (visualization pane will be added dynamically)
                 mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
+
+                // Set initial divider position (left pane takes 2%, center takes 98%)
                 mainSplitPane.setDividerPositions(0.02);
-                VBox visualizationWorkarea = createVisualizationWorkarea();
-                mainSplitPane.getItems().add(visualizationWorkarea);
+
+                // Create the visualization work area (but don't add it yet)
+                visualizationWorkarea = createVisualizationWorkarea();
+
+                // In the Main class constructor or initialization
+                currentLineProperty.addListener((obs, oldVal, newVal) -> {
+                    Platform.runLater(() -> {
+                        codeArea.requestLayout();
+                    });
+                });
+                // Set up the root layout
                 root.setTop(menuBar);
                 root.setCenter(mainSplitPane);
-                Image Icon = new Image(getClass().getResourceAsStream("Project Logo.jpg"));
 
+                // Set up the stage
+                Image Icon = new Image(getClass().getResourceAsStream("IDE_Logo.png"));
                 Scene scene = new Scene(root, 800, 600);
                 primaryStage.setMaximized(true);
                 primaryStage.setScene(scene);
@@ -153,37 +176,212 @@ public class CustomIDE extends Application {
         stage.setY(centerY);
     }
 
+
     private VBox createVisualizationWorkarea() {
         VBox visualizationBox = new VBox(10);
-        visualizationBox.setPadding(new javafx.geometry.Insets(10));
+        visualizationBox.setPadding(new Insets(10));
+        visualizationBox.setStyle("-fx-background-color: #cdf7e9; -fx-border-color: #ccc; -fx-border-width: 1px;");
 
-        // Label to display the current line of code
-        currentLineLabel = new Label("Current Line: ");
-        currentLineLabel.setFont(Font.font(14));
+        currentLineLabel = new Label("Current Line:");
+        currentLineLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        currentLineLabel.setStyle(
+                "-fx-text-fill: white; " +
+                        "-fx-background-color: #16a085; " +
+                        "-fx-padding: 10px 15px; " +
+                        "-fx-border-radius: 8px; " +
+                        "-fx-background-radius: 8px; " +
+                        "-fx-border-color: #1abc9c; " +
+                        "-fx-border-width: 2px; "
+        );
 
-        // Pane for visualization
+        DropShadow redGlow = new DropShadow();
+        redGlow.setColor(Color.rgb(255, 68, 68, 0.8));
+        redGlow.setRadius(10);
+        redGlow.setSpread(0.6);
+
+        Button closeButton = new Button("✕");
+        closeButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #ff4444; " + // Initial background color
+                        "-fx-padding: 5px 10px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+
+// On hover, change color and add red glow
+        closeButton.setOnMouseEntered(e -> {
+            closeButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #f74d4d; " + // Darker red on hover
+                            "-fx-padding: 5px 10px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            closeButton.setEffect(redGlow); // Apply red glow effect
+        });
+
+// On mouse exit, reset color and remove glow
+        closeButton.setOnMouseExited(e -> {
+            closeButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #ff4444; " + // Reset to original color
+                            "-fx-padding: 5px 10px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            closeButton.setEffect(null); // Remove glow effect
+        });
+
+// Define button action
+        closeButton.setOnAction(e -> toggleVisualization());
+
+
+        // Create spacer to push close button to right
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox topBar = new HBox(10, currentLineLabel, spacer, closeButton);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+
+        // Visualization Pane - Remove black borders
         visualizationPane = new Pane();
-        visualizationPane.setPrefSize(1000, 500);
-        visualizationPane.setStyle("-fx-background-color: #f0f0f0;");
+        visualizationPane.setMinSize(800, 500);
+        visualizationPane.setStyle("-fx-background-color: #e1eff7;");
 
-        // Buttons for navigation
+        // ScrollPane Configuration
+        ScrollPane scrollPane = new ScrollPane(visualizationPane);
+        scrollPane.setFitToWidth(false);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setStyle("-fx-background: #f0f0f0;");
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+
+        DropShadow glowEffect = new DropShadow();
+        glowEffect.setColor(Color.rgb(76, 175, 80, 0.8)); // Green glow matching #4CAF50
+        glowEffect.setRadius(10);
+        glowEffect.setSpread(0.5);
+
         Button nextButton = new Button("Next");
-        Button prevButton = new Button("Previous");
-
+        nextButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-padding: 8px 16px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+        nextButton.setOnMouseEntered(e -> {
+            nextButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            nextButton.setEffect(glowEffect);
+        });
+        nextButton.setOnMouseExited(e -> {
+            nextButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            nextButton.setEffect(null); // Remove glow effect
+        });
         nextButton.setOnAction(e -> visualizeNextLine());
+
+        Button prevButton = new Button("Previous");
+        prevButton.setStyle(
+                "-fx-font-size: 14px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-padding: 8px 16px; " +
+                        "-fx-border-radius: 5px; " +
+                        "-fx-background-radius: 5px; " +
+                        "-fx-cursor: hand;"
+        );
+        prevButton.setOnMouseEntered(e -> {
+            prevButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            prevButton.setEffect(glowEffect); // FIXED: Apply glow effect to prevButton
+        });
+        prevButton.setOnMouseExited(e -> {
+            prevButton.setStyle(
+                    "-fx-font-size: 14px; " +
+                            "-fx-font-weight: bold; " +
+                            "-fx-text-fill: white; " +
+                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-padding: 8px 16px; " +
+                            "-fx-border-radius: 5px; " +
+                            "-fx-background-radius: 5px; " +
+                            "-fx-cursor: hand;"
+            );
+            prevButton.setEffect(null); // Remove glow effect
+        });
         prevButton.setOnAction(e -> visualizePreviousLine());
 
+
         HBox buttonBox = new HBox(10, prevButton, nextButton);
+        buttonBox.setAlignment(Pos.CENTER);
 
-        // Add components to the visualization box
-        visualizationBox.getChildren().addAll(currentLineLabel, visualizationPane, buttonBox);
-
+        visualizationBox.getChildren().addAll(topBar, scrollPane, buttonBox);
         return visualizationBox;
     }
+
+
+    private void toggleVisualization() {
+        isVisualizationVisible = !isVisualizationVisible;
+
+        if (isVisualizationVisible) {
+            // Add visualization pane if not already added
+            if (!mainSplitPane.getItems().contains(visualizationWorkarea)) {
+                mainSplitPane.getItems().add(visualizationWorkarea);
+            }
+            // Set divider positions: left 2%, center+visualization 98%
+            mainSplitPane.setDividerPositions(0.02, 0.7);
+            startVisualization();
+        } else {
+            // Remove visualization pane and reset divider
+            mainSplitPane.getItems().remove(visualizationWorkarea);
+            mainSplitPane.setDividerPositions(0.02);
+            // Reset current line property to hide the arrow
+            currentLineProperty.set(-1);
+        }
+    }
+
 
     private void visualizeNextLine() {
         if (currentLineIndex < codeLines.size() - 1) {
             currentLineIndex++;
+            currentLineProperty.set(currentLineIndex);
             updateVisualization();
         }
     }
@@ -191,6 +389,7 @@ public class CustomIDE extends Application {
     private void visualizePreviousLine() {
         if (currentLineIndex > 0) {
             currentLineIndex--;
+            currentLineProperty.set(currentLineIndex);
             updateVisualization();
         }
     }
@@ -236,15 +435,42 @@ public class CustomIDE extends Application {
 
             // Draw variable box
             if (variableBoxes.containsKey(varName)) {
-                variableTexts.get(varName).setText(varName + " = " + value); // Update text directly
+                // Update existing variable box
+                Text varText = variableTexts.get(varName);
+                if (value instanceof Double || value instanceof Float) {
+                    varText.setText(varName + " = " + String.format("%.2f", value));
+                } else {
+                    varText.setText(varName + " = " + value);
+                }
             } else {
-                // **New variable: Create UI elements**
-                Rectangle rect = new Rectangle(10, 50 + (variables.size() - 1) * 40, 100, 30);
-                rect.setFill(Color.LIGHTBLUE);
-                rect.setStroke(Color.BLACK);
+                // Calculate position for new variable box
+                double startX = 10; // Start X position
+                double startY = 50 + (variables.size() - 1) * 50; // Adjust Y position dynamically
 
-                Text varText = new Text(15, 70 + (variables.size() - 1) * 40, varName + " = " + value);
+                Rectangle rect = new Rectangle(startX, startY, 120, 30);
+                rect.setFill(Color.LIGHTBLUE);
+                rect.setStroke(Color.BLACK);  // <--- THIS CREATES BLACK BORDER
+                rect.setArcWidth(10);
+                rect.setArcHeight(10);
+
+                rect.setStroke(null);
+
+                double requiredHeight = startY + 50; // New bottom edge of the variable box
+                if (visualizationPane.getPrefHeight() < requiredHeight) {
+                    visualizationPane.setPrefHeight(requiredHeight); // Expand pane height
+                }
+
+                double requiredWidth = startX + 130; // New right edge of the variable box
+                if (visualizationPane.getPrefWidth() < requiredWidth) {
+                    visualizationPane.setPrefWidth(requiredWidth); // Expand pane width
+                }
+
+                Text varText = new Text(startX + 10, startY + 20, varName + " = " + (value instanceof Double || value instanceof Float ? String.format("%.2f", value) : value));
                 varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+
+
+                rect.setOnMouseEntered(e -> rect.setFill(Color.LIGHTGREEN));  // Hover color
+                rect.setOnMouseExited(e -> rect.setFill(Color.LIGHTBLUE));    // Normal color
 
                 visualizationPane.getChildren().addAll(rect, varText);
                 variableBoxes.put(varName, rect);
@@ -255,7 +481,9 @@ public class CustomIDE extends Application {
                     visualizeDataStructure(varName, value, type);
                 }
             }
-        } else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
+        }
+
+        else if (currentLine.matches("\\w+\\s*=\\s*[^;]+;")) {
             // Handle assignments
             String[] parts = currentLine.split("=");
             String varName = parts[0].trim();
@@ -487,6 +715,7 @@ public class CustomIDE extends Application {
             handleLogicalAndOperator(currentLine);
         }
     }
+
 
     private void handleConditionalStatement(String currentLine) {
         System.out.println("Handling conditional statement: " + currentLine); // Debug statement
@@ -772,12 +1001,14 @@ public class CustomIDE extends Application {
     private void handleLogicalAndOperator(String currentLine) {
         // Implementation for handling logical AND operator
     }
+
+
     private void visualizeDataStructure(String varName, Object value, String type) {
-        // Clear previous visualization for this data structure
+
         visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
         visualizationPane.getChildren().removeIf(node -> node instanceof Text && node.getUserData() != null && node.getUserData().equals(varName));
 
-        // Position the data structure visualization closer to the variable name
+        // Position the data structure visualization
         double startX = 150; // Start X position for data structure visualization
         double startY = 50 + (variables.size() - 1) * 40;
 
@@ -787,6 +1018,8 @@ public class CustomIDE extends Application {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
                 rect.setFill(Color.LIGHTGREEN);
                 rect.setStroke(Color.BLACK);
+                rect.setArcWidth(5); // Rounded corners
+                rect.setArcHeight(5);
                 rect.setUserData(varName); // Tag the rectangle with the variable name
 
                 Text charText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(strValue.charAt(i)));
@@ -799,7 +1032,9 @@ public class CustomIDE extends Application {
 
                 visualizationPane.getChildren().addAll(rect, charText, indexText);
             }
-        } else if (type.equals("int[]")) {
+        }
+
+        else if (type.equals("int[]")) {
             int[] arrayValue = (int[]) value;
             for (int i = 0; i < arrayValue.length; i++) {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
@@ -1088,10 +1323,8 @@ public class CustomIDE extends Application {
     private void startVisualization() {
         initializeCodeLines();
         currentLineIndex = 0;
+        currentLineProperty.set(currentLineIndex);
         updateVisualization();
-        for (Map.Entry<String, Object> entry : variables.entrySet()) {
-            visualizeArray(entry.getKey(), entry.getValue());
-        }
     }
 
 
@@ -1167,13 +1400,36 @@ public class CustomIDE extends Application {
         documentation.setOnAction(e -> appDocumentation());
         lightMode.setOnAction(e -> applyLightMode());
         darkMode.setOnAction(e -> applyDarkMode());
+        visualizeCode.setOnAction(e -> toggleVisualization());
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
 
         return menuBar;
     }
 
     private CodeArea createCodeArea() {
         CodeArea codeArea = new CodeArea();
-        codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+
+        // Set the custom paragraph graphic factory with the red arrow and line numbers
+        codeArea.setParagraphGraphicFactory(paraIdx -> {
+            HBox hbox = new HBox();
+            hbox.setSpacing(5);
+            hbox.setStyle("-fx-background-color: #cdf7e9; -fx-padding: 2px;"); // Gray background
+
+            // Red arrow indicator
+            Label arrow = new Label("➤"); // Thicker arrow
+            arrow.setStyle("-fx-text-fill: red; -fx-font-size: 18px; -fx-font-weight: bold;");
+            arrow.visibleProperty().bind(currentLineProperty.isEqualTo(paraIdx));
+
+            // Line number
+            Label lineNumber = new Label(String.valueOf(paraIdx + 1));
+            lineNumber.setStyle("-fx-font-family: monospace; -fx-font-size: 14px;");
+
+            hbox.getChildren().addAll(arrow, lineNumber);
+            return hbox;
+        });
+
+        // Syntax highlighting listener
         codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
 
         // Default font size
@@ -1183,7 +1439,7 @@ public class CustomIDE extends Application {
         codeArea.styleProperty().bind(Bindings.concat(
                 "-fx-font-family: 'Courier New', 'Courier', 'monospace'; ",
                 "-fx-font-size: ", fontSize.asString(), "px; ",
-                "-fx-text-fill: #000000;" // Changed text color to black for better visibility
+                "-fx-text-fill: #000000;"
         ));
 
         // Handle Zoom In / Zoom Out using Mouse Scroll + Ctrl
@@ -1214,8 +1470,11 @@ public class CustomIDE extends Application {
             }
         });
 
+        // Apply light mode by default
         codeArea.getStyleClass().add("light-mode");
         codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+
+        // Handle auto-formatting for braces, parentheses, and brackets
         codeArea.setOnKeyTyped(event -> {
             String typedChar = event.getCharacter();
             if (typedChar.isEmpty()) return;
@@ -1232,28 +1491,90 @@ public class CustomIDE extends Application {
                     break;
             }
         });
+
         return codeArea;
     }
+
+
+    private void showComplexityPane(String complexityType, String complexityValue) {
+        Stage complexityStage = new Stage();
+        complexityStage.initStyle(StageStyle.TRANSPARENT); // Removes window decorations
+
+        // Main label for complexity value
+        Label complexityLabel = new Label(complexityValue);
+        complexityLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 26)); // Bigger & bold text
+        complexityLabel.setTextFill(Color.WHITE); // White text
+        complexityLabel.setPadding(new Insets(15));
+
+        // Subtle glow effect without making text blurry
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.WHITE);
+        glow.setRadius(3);  // Reduced glow radius for sharper text
+        glow.setSpread(0.2); // Less spread for subtle effect
+        glow.setBlurType(BlurType.GAUSSIAN); // Keeps text smooth and clear
+        complexityLabel.setEffect(glow);
+
+        // **New Top Banner for Complexity Type with Full Name**
+        String fullComplexityType = complexityType.equalsIgnoreCase("Time") ? "Time Complexity" :
+                complexityType.equalsIgnoreCase("Space") ? "Space Complexity" : complexityType;
+
+        Label headerLabel = new Label(fullComplexityType); // Using full complexity type
+        headerLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 20)); // Bigger text
+        headerLabel.setTextFill(Color.BLACK); // Black text for contrast
+        headerLabel.setAlignment(Pos.TOP_CENTER);
+        headerLabel.setPadding(new Insets(10));
+        headerLabel.setMaxWidth(Double.MAX_VALUE);
+        headerLabel.setStyle("-fx-background-color: yellow;"); // **Yellow strip on top**
+
+        // Main layout
+        VBox layout = new VBox(headerLabel, complexityLabel); // Added header at the top
+        layout.setAlignment(Pos.CENTER);
+        layout.setStyle("-fx-background-color: #000000; -fx-border-color: #444; -fx-border-width: 2px; -fx-border-radius: 8px;");
+        layout.setPadding(new Insets(30)); // Increased padding for a balanced layout
+
+        // Increase the card size
+        double cardWidth = 420;
+        double cardHeight = 260;
+
+        Scene scene = new Scene(layout, cardWidth, cardHeight);
+        scene.setFill(Color.TRANSPARENT);
+        complexityStage.setScene(scene);
+
+        // Set the pane at the center of the screen
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        complexityStage.setX((screenBounds.getWidth() - cardWidth) / 2);
+        complexityStage.setY((screenBounds.getHeight() - cardHeight) / 2);
+
+        // Close the pane when clicking outside
+        scene.setOnMouseClicked(event -> complexityStage.close());
+
+        complexityStage.show();
+    }
+
+
 
     private void calculateTimeComplexity() {
         String code = codeArea.getText();
         String timeComplexity = analyzeTimeComplexity(code);
-        outputArea.setText("Time Complexity: " + timeComplexity);
+        showComplexityPane("Time", timeComplexity);
     }
     private String analyzeTimeComplexity(String code) {
         String[] lines = code.split("\n");
         int maxNestedLoops = 0;
+        int currentDepth = 0;
         boolean hasRecursion = false;
         boolean hasLogarithmicLoop = false;
         boolean hasLinearithmic = false;
         boolean hasDifferentRanges = false;
+        List<String> complexities = new ArrayList<>();
 
         for (String line : lines) {
             line = line.trim();
 
             // Check for loops
             if (line.startsWith("for") || line.startsWith("while")) {
-                maxNestedLoops++;
+                currentDepth++;
+                maxNestedLoops = Math.max(maxNestedLoops, currentDepth);
 
                 // Check for logarithmic loops (e.g., i *= 2 or i /= 2)
                 if (line.contains("*=") || line.contains("/=")) {
@@ -1261,8 +1582,15 @@ public class CustomIDE extends Application {
                 }
 
                 // Check for different ranges in nested loops
-                if (line.contains("i < n") && line.contains("j < m")) {
+                if (line.contains("i<n") && line.contains("j<m")) {
                     hasDifferentRanges = true;
+                }
+            }
+
+            // Check for end of loop
+            if (line.equals("}")) {
+                if (currentDepth > 0) {
+                    currentDepth--;
                 }
             }
 
@@ -1271,39 +1599,48 @@ public class CustomIDE extends Application {
                 hasRecursion = true;
             }
 
-            // Check for divide-and-conquer algorithms (e.g., merge sort, quicksort)
-            if (line.contains("mergeSort(") || line.contains("quickSort(")) {
-                hasLinearithmic = true;
+            // Check for built-in functions and their complexities
+            if (line.contains("sort(")) {
+                complexities.add("O(n log n)");
+            } else if (line.contains("binary_search(")) {
+                complexities.add("O(log n)");
+            } else if (line.contains("find(") || line.contains("count(")) {
+                complexities.add("O(n)");
             }
         }
 
-        // Determine the time complexity based on the analysis
+        // Determine the complexity based on the maximum depth of nested loops
         if (maxNestedLoops == 0 && !hasRecursion) {
-            return "O(1)"; // Constant time
+            complexities.add("O(1)"); // Constant time
         } else if (maxNestedLoops == 1 && !hasRecursion) {
             if (hasLogarithmicLoop) {
-                return "O(log n)"; // Logarithmic time
+                complexities.add("O(log n)"); // Logarithmic time
             } else {
-                return "O(n)"; // Linear time
+                complexities.add("O(n)"); // Linear time
             }
         } else if (maxNestedLoops == 2 && !hasRecursion) {
             if (hasDifferentRanges) {
-                return "O(n * m)"; // Different ranges
+                complexities.add("O(n * m)"); // Different ranges
             } else {
-                return "O(n^2)"; // Quadratic time
+                complexities.add("O(n²)"); // Quadratic time
             }
         } else if (hasLinearithmic) {
-            return "O(n log n)"; // Linearithmic time
+            complexities.add("O(n log n)"); // Linearithmic time
         } else if (hasRecursion) {
-            return "O(2^n)"; // Exponential time (for simplicity)
+            complexities.add("O(2ⁿ)"); // Exponential time (for simplicity)
         } else {
-            return "O(n^k)"; // Polynomial time (k = maxNestedLoops)
+            complexities.add("O(n^" + maxNestedLoops + ")"); // Polynomial time (k = maxNestedLoops)
         }
+
+        // Return the maximum complexity
+        return complexities.stream().max(String::compareTo).orElse("O(1)");
     }
+
+
     private void calculateSpaceComplexity() {
         String code = codeArea.getText();
         String spaceComplexity = analyzeSpaceComplexity(code);
-        outputArea.setText("Space Complexity: " + spaceComplexity);
+        showComplexityPane("Space", spaceComplexity);
     }
 
     private String analyzeSpaceComplexity(String code) {
@@ -1324,12 +1661,12 @@ public class CustomIDE extends Application {
             line = line.trim();
 
             // Count variables
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
                 variableCount++;
             }
 
             // Count array sizes
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String sizeStr = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\].*", "$1");
                 if (sizeStr.matches("\\d+")) {
                     arraySize += Integer.parseInt(sizeStr);
@@ -1339,7 +1676,7 @@ public class CustomIDE extends Application {
             }
 
             // Count matrix sizes
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
                 if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
                     matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
@@ -1349,22 +1686,22 @@ public class CustomIDE extends Application {
             }
 
             // Check for 2D vectors
-            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*;")) {
+            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 has2DVector = true;
             }
 
             // Check for 1D vectors
-            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasVector = true;
             }
 
-            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasQueue = true;
             }
-            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasStack = true;
             }
-            if (line.matches("list\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("list\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasLinkedList = true;
             }
 
@@ -1383,7 +1720,7 @@ public class CustomIDE extends Application {
         if (variableCount == 0 && arraySize == 0 && matrixSize == 0 && recursiveDepth == 0 && !hasDynamicAllocation && !hasVector && !has2DVector) {
             return "O(1)"; // Constant space
         } else if (matrixSize > 0 || has2DVector) {
-            return "O(n^2)"; // Quadratic space (due to matrices or 2D vectors)
+            return "O(n²)"; // Quadratic space (due to matrices or 2D vectors)
         } else if (arraySize > 0 || hasVector) {
             return "O(n)"; // Linear space (due to arrays or 1D vectors)
         } else if (hasVector || hasQueue || hasStack || hasLinkedList) {
@@ -1929,6 +2266,7 @@ public class CustomIDE extends Application {
                 + "- Code editing with syntax highlighting\n"
                 + "- Run and debug C++ code\n"
                 + "- Input and output visualization\n"
+                + "-Tools (Visulization, Code Template, Anylize Code, Time & Space Complexity, Clear Code)\n"
                 + "- File operations (Open, Save, New)\n\n"
                 + "Developed by: Taz , Jamil , Rihin");
         detailsAlert.showAndWait();
@@ -2101,16 +2439,11 @@ public class CustomIDE extends Application {
                         "3. Run Code: Compile and execute C++ code with support for input/output.\n" +
                         "4. Debug Code: Debug your code using the integrated GDB support.\n" +
                         "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n" +
-                        "6. Format Code: Automatically format your code for readability.\n" +
-                        "7. Documentation: View app features and functionality.\n\n" +
-                        "Keyboard Shortcuts:\n" +
-                        "- Ctrl + S: Save the current file\n" +
-                        "- Ctrl + O: Open a file\n" +
-                        "- Ctrl + N: Create a new file\n" +
-                        "- Ctrl + R: Run the code\n" +
-                        "- Ctrl + D: Debug the code\n" +
-                        "- Ctrl + Z: Undo\n" +
-                        "- Ctrl + Y: Redo\n\n" +
+                        "6. Time Complexity: Analyze the time complexity of your code.\n" +
+                        "7. Space Complexity: Analyze the space complexity of your code.\n" +
+                        "8. Visualize Data: Visualize your data structures and algorithms.\n" +
+                        "9. Format Code: Automatically format your code for readability.\n" +
+                        "10. Documentation: View app features and functionality.\n\n" +
                         "Developed by: Taz, Jamil, Rihin\n" +
                         "Version: 1.0\n" +
                         "License: MIST"
