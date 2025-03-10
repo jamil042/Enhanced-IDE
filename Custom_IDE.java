@@ -1223,6 +1223,10 @@ public class Custom_IDE extends Application {
         MenuItem timeComplexity = new MenuItem("Time Complexity");
         MenuItem spaceComplexity = new MenuItem("Space Complexity");
         MenuItem deleteCode = new MenuItem("Clear Code");
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
+        visualizeCode.setOnAction(e -> startVisualization());
+
         toolsMenu.getItems().addAll(visualizeCode,formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
 
 
@@ -1255,9 +1259,6 @@ public class Custom_IDE extends Application {
         visualizeCode.setOnAction(e -> toggleVisualization());
         timeComplexity.setOnAction(e -> calculateTimeComplexity());
         spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
-        timeComplexity.setOnAction(e -> calculateTimeComplexity());
-        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
-        visualizeCode.setOnAction(e -> startVisualization());
 
         return menuBar;
     }
