@@ -1,0 +1,63 @@
+.menu-bar {
+    -fx-background-color: linear-gradient(to bottom, #e1f1f7, #def2fa);
+    -fx-padding: 5px;
+    -fx-border-color: #2c3e50;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.6), 8, 0, 0, 2);
+    -fx-opacity: 0.95;
+    -fx-transition: opacity 0.3s ease-in-out;
+}
+
+.menu-bar:hover {
+    -fx-opacity: 0.8;
+}
+
+.menu {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px; /* Reduced font size for thinner menu */
+    -fx-font-weight: bold;
+    -fx-padding: 5px 12px; /* Reduced padding inside menu items */
+    -fx-background-radius: 5px;
+    -fx-transition: background-color 0.3s ease, text-fill 0.3s ease;
+}
+
+.menu:hover {
+    -fx-background-color: linear-gradient(to right, #5dade2, #2980b9);
+    -fx-text-fill: #ffeb3b;
+    -fx-effect: dropshadow(gaussian, rgba(255,255,255,0.5), 5, 0, 0, 0);
+}
+
+.menu-item {
+    -fx-text-fill: #2c3e50;
+    -fx-font-size: 12px; /* Reduced font size for thinner menu items */
+    -fx-padding: 7px 18px; /* Reduced padding inside menu items */
+    -fx-background-radius: 5px;
+    -fx-transition: background-color 0.3s ease, text-fill 0.3s ease;
+}
+
+.menu-item:hover {
+    -fx-background-color: linear-gradient(to right, #4a90e2, #1e3799);
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 3, 0, 0, 0);
+}
+
+.context-menu {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+    -fx-background-radius: 5px;
+}
+
+.menu-item .separator {
+    -fx-background-color: #bdc3c7;
+    -fx-padding: 0 8px;
+}
+
+.menu-bar, .menu, .menu-item {
+    -fx-opacity: 0.95;
+    -fx-transition: opacity 0.3s ease-in-out;
+}
+
+.menu-bar:hover, .menu:hover, .menu-item:hover {
+    -fx-opacity: 1;
+}
