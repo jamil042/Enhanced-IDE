@@ -91,4 +91,7 @@ Once everything is set up, run the CustomIDE.java file to start the Custom IDE.
 
 ## Contributing
 
-If you wish to contribute to this project, please fork the repository and create a pull request with your changes.
+1. Clone the repository
+2. Create a new branch
+3. Make your changes
+4. Push your changes to the new branch
