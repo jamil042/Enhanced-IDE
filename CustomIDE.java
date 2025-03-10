@@ -119,7 +119,14 @@ public class CustomIDE extends Application {
                 fileContentMap.put(currentFileName, "");
                 initializeFileListView();
 
-                VBox leftPane = new VBox(filesLabel, fileListView);
+                // Load the image for the bottom of the File Section
+                Image bottomImage = new Image(getClass().getResourceAsStream("sample.jpg")); // Load the image
+                ImageView bottomImageView = new ImageView(bottomImage);
+                bottomImageView.setFitWidth(300); // Set the width of the image
+                bottomImageView.setPreserveRatio(true); // Maintain aspect ratio
+
+                // Create a VBox to stack the file section, file list, and image
+                VBox leftPane = new VBox(filesLabel, fileListView, bottomImageView);
                 leftPane.setPrefWidth(90);
                 leftPane.setMinWidth(70);
                 leftPane.setStyle(
@@ -130,6 +137,9 @@ public class CustomIDE extends Application {
                 filesLabel.setMaxWidth(Double.MAX_VALUE);
                 filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
                 leftPane.setFillWidth(true);
+
+                // Ensure the image expands to fill the remaining space
+                VBox.setVgrow(bottomImageView, Priority.ALWAYS);
 
                 // Create the center split pane (code area, input, output)
                 SplitPane centerSplitPane = createSplitPane();
@@ -153,13 +163,14 @@ public class CustomIDE extends Application {
                         codeArea.requestLayout();
                     });
                 });
+
                 // Set up the root layout
                 root.setTop(menuBar);
                 root.setCenter(mainSplitPane);
 
                 // Set up the stage
                 Image Icon = new Image(getClass().getResourceAsStream("IDE_Logo.png"));
-                Scene scene = new Scene(root, 800, 600);
+                Scene scene = new Scene(root, 1072, 600);
                 primaryStage.setMaximized(true);
                 primaryStage.setScene(scene);
                 primaryStage.getIcons().add(Icon);
