@@ -103,13 +103,13 @@ public class CustomIDE extends Application {
                 // Create the "Files" label
                 Label filesLabel = new Label("File Section");
                 filesLabel.setStyle(
-                        "-fx-font-size: 18px; " +  // Larger font size for the section title
-                                "-fx-font-family: 'Segoe UI', sans-serif; " +  // Modern font family
-                                "-fx-font-weight: bold; " +  // Bold text
-                                "-fx-text-fill: #2c3e50; " +  // Darker text color for better contrast (matching fileListView theme)
-                                "-fx-background-color: rgba(173, 216, 230, 0.6); " +  // Light sky-blue background similar to fileListView
-                                "-fx-padding: 10px 15px; " +  // Padding inside the label
-                                "-fx-border-radius: 5px;"  // Rounded corners for the label
+                        "-fx-font-size: 18px; " +
+                                "-fx-font-family: 'Segoe UI', sans-serif; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-text-fill: #2c3e50; " +
+                                "-fx-background-color: rgba(173, 216, 230, 0.6); " +
+                                "-fx-padding: 10px 15px; " +
+                                "-fx-border-radius: 5px;"
                 );
 
                 fileListView = new ListView<>();
@@ -119,56 +119,36 @@ public class CustomIDE extends Application {
                 fileContentMap.put(currentFileName, "");
                 initializeFileListView();
 
-                // Load the image for the bottom of the File Section
-                Image bottomImage = new Image(getClass().getResourceAsStream("sample.jpg")); // Load the image
+                Image bottomImage = new Image(getClass().getResourceAsStream("sample.jpg"));
                 ImageView bottomImageView = new ImageView(bottomImage);
-                bottomImageView.setFitWidth(300); // Set the width of the image
-                bottomImageView.setPreserveRatio(true); // Maintain aspect ratio
+                bottomImageView.setFitWidth(300);
+                bottomImageView.setPreserveRatio(true);
 
-                // Create a VBox to stack the file section, file list, and image
                 VBox leftPane = new VBox(filesLabel, fileListView, bottomImageView);
                 leftPane.setPrefWidth(90);
                 leftPane.setMinWidth(70);
                 leftPane.setStyle(
-                        "-fx-background-color: #f4f4f4; " +  // Light gray background for the VBox
-                                "-fx-padding: 0px; " +  // No extra padding
-                                "-fx-spacing: 0px;"  // No extra space between label and file list
+                        "-fx-background-color: #f4f4f4; " +
+                                "-fx-padding: 0px; " +
+                                "-fx-spacing: 0px;"
                 );
                 filesLabel.setMaxWidth(Double.MAX_VALUE);
                 filesLabel.setStyle(filesLabel.getStyle() + "-fx-alignment: center-left; ");
                 leftPane.setFillWidth(true);
-
-                // Ensure the image expands to fill the remaining space
                 VBox.setVgrow(bottomImageView, Priority.ALWAYS);
-
-                // Create the center split pane (code area, input, output)
                 SplitPane centerSplitPane = createSplitPane();
-
-                // Initialize the main split pane (left, center, and visualization)
                 mainSplitPane = new SplitPane();
                 mainSplitPane.setOrientation(Orientation.HORIZONTAL);
-
-                // Add left and center panes initially (visualization pane will be added dynamically)
                 mainSplitPane.getItems().addAll(leftPane, centerSplitPane);
-
-                // Set initial divider position (left pane takes 2%, center takes 98%)
                 mainSplitPane.setDividerPositions(0.02);
-
-                // Create the visualization work area (but don't add it yet)
                 visualizationWorkarea = createVisualizationWorkarea();
-
-                // In the Main class constructor or initialization
                 currentLineProperty.addListener((obs, oldVal, newVal) -> {
                     Platform.runLater(() -> {
                         codeArea.requestLayout();
                     });
                 });
-
-                // Set up the root layout
                 root.setTop(menuBar);
                 root.setCenter(mainSplitPane);
-
-                // Set up the stage
                 Image Icon = new Image(getClass().getResourceAsStream("IDE_Logo.png"));
                 Scene scene = new Scene(root, 1072, 600);
                 primaryStage.setMaximized(true);
@@ -215,69 +195,58 @@ public class CustomIDE extends Application {
                 "-fx-font-size: 14px; " +
                         "-fx-font-weight: bold; " +
                         "-fx-text-fill: white; " +
-                        "-fx-background-color: #ff4444; " + // Initial background color
+                        "-fx-background-color: #ff4444; " +
                         "-fx-padding: 5px 10px; " +
                         "-fx-border-radius: 5px; " +
                         "-fx-background-radius: 5px; " +
                         "-fx-cursor: hand;"
         );
 
-// On hover, change color and add red glow
         closeButton.setOnMouseEntered(e -> {
             closeButton.setStyle(
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #f74d4d; " + // Darker red on hover
+                            "-fx-background-color: #f74d4d; " +
                             "-fx-padding: 5px 10px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
                             "-fx-cursor: hand;"
             );
-            closeButton.setEffect(redGlow); // Apply red glow effect
+            closeButton.setEffect(redGlow);
         });
 
-// On mouse exit, reset color and remove glow
         closeButton.setOnMouseExited(e -> {
             closeButton.setStyle(
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #ff4444; " + // Reset to original color
+                            "-fx-background-color: #ff4444; " +
                             "-fx-padding: 5px 10px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
                             "-fx-cursor: hand;"
             );
-            closeButton.setEffect(null); // Remove glow effect
+            closeButton.setEffect(null);
         });
 
-// Define button action
         closeButton.setOnAction(e -> toggleVisualization());
-
-
-        // Create spacer to push close button to right
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-
         HBox topBar = new HBox(10, currentLineLabel, spacer, closeButton);
         topBar.setAlignment(Pos.CENTER_LEFT);
 
-        // Visualization Pane - Remove black borders
         visualizationPane = new Pane();
         visualizationPane.setMinSize(800, 500);
         visualizationPane.setStyle("-fx-background-color: #e1eff7;");
-
-        // ScrollPane Configuration
         ScrollPane scrollPane = new ScrollPane(visualizationPane);
         scrollPane.setFitToWidth(false);
         scrollPane.setFitToHeight(false);
+
         scrollPane.setStyle("-fx-background: #f0f0f0;");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
-
-
         DropShadow glowEffect = new DropShadow();
-        glowEffect.setColor(Color.rgb(76, 175, 80, 0.8)); // Green glow matching #4CAF50
+        glowEffect.setColor(Color.rgb(76, 175, 80, 0.8));
         glowEffect.setRadius(10);
         glowEffect.setSpread(0.5);
 
@@ -286,7 +255,7 @@ public class CustomIDE extends Application {
                 "-fx-font-size: 14px; " +
                         "-fx-font-weight: bold; " +
                         "-fx-text-fill: white; " +
-                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-background-color: #4CAF50; " +
                         "-fx-padding: 8px 16px; " +
                         "-fx-border-radius: 5px; " +
                         "-fx-background-radius: 5px; " +
@@ -297,7 +266,7 @@ public class CustomIDE extends Application {
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-background-color: #63c967; " +
                             "-fx-padding: 8px 16px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
@@ -310,13 +279,13 @@ public class CustomIDE extends Application {
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-background-color: #4CAF50; " +
                             "-fx-padding: 8px 16px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
                             "-fx-cursor: hand;"
             );
-            nextButton.setEffect(null); // Remove glow effect
+            nextButton.setEffect(null);
         });
         nextButton.setOnAction(e -> visualizeNextLine());
 
@@ -325,7 +294,7 @@ public class CustomIDE extends Application {
                 "-fx-font-size: 14px; " +
                         "-fx-font-weight: bold; " +
                         "-fx-text-fill: white; " +
-                        "-fx-background-color: #4CAF50; " + // Initial background color
+                        "-fx-background-color: #4CAF50; " +
                         "-fx-padding: 8px 16px; " +
                         "-fx-border-radius: 5px; " +
                         "-fx-background-radius: 5px; " +
@@ -336,54 +305,46 @@ public class CustomIDE extends Application {
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #63c967; " + // Hover background color
+                            "-fx-background-color: #63c967; " +
                             "-fx-padding: 8px 16px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
                             "-fx-cursor: hand;"
             );
-            prevButton.setEffect(glowEffect); // FIXED: Apply glow effect to prevButton
+            prevButton.setEffect(glowEffect);
         });
         prevButton.setOnMouseExited(e -> {
             prevButton.setStyle(
                     "-fx-font-size: 14px; " +
                             "-fx-font-weight: bold; " +
                             "-fx-text-fill: white; " +
-                            "-fx-background-color: #4CAF50; " + // Reset to initial background color
+                            "-fx-background-color: #4CAF50; " +
                             "-fx-padding: 8px 16px; " +
                             "-fx-border-radius: 5px; " +
                             "-fx-background-radius: 5px; " +
                             "-fx-cursor: hand;"
             );
-            prevButton.setEffect(null); // Remove glow effect
+            prevButton.setEffect(null);
         });
         prevButton.setOnAction(e -> visualizePreviousLine());
-
-
         HBox buttonBox = new HBox(10, prevButton, nextButton);
         buttonBox.setAlignment(Pos.CENTER);
-
         visualizationBox.getChildren().addAll(topBar, scrollPane, buttonBox);
         return visualizationBox;
     }
-
 
     private void toggleVisualization() {
         isVisualizationVisible = !isVisualizationVisible;
 
         if (isVisualizationVisible) {
-            // Add visualization pane if not already added
             if (!mainSplitPane.getItems().contains(visualizationWorkarea)) {
                 mainSplitPane.getItems().add(visualizationWorkarea);
             }
-            // Set divider positions: left 2%, center+visualization 98%
             mainSplitPane.setDividerPositions(0.02, 0.7);
             startVisualization();
         } else {
-            // Remove visualization pane and reset divider
             mainSplitPane.getItems().remove(visualizationWorkarea);
             mainSplitPane.setDividerPositions(0.02);
-            // Reset current line property to hide the arrow
             currentLineProperty.set(-1);
         }
     }
@@ -406,19 +367,13 @@ public class CustomIDE extends Application {
     }
 
     private void updateVisualization() {
-        // Update the current line label
         currentLineLabel.setText("Current Line: " + codeLines.get(currentLineIndex));
-
-        // Highlight the current line in the code area
         codeArea.moveTo(currentLineIndex, 0);
         codeArea.requestFollowCaret();
-
-        // Parse and visualize the current line
         String currentLine = codeLines.get(currentLineIndex).trim();
 
-        // Handle variable declarations and assignments
         if (currentLine.matches("(int|float|double|string|char|bool|short)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
-            // Extract variable name and value
+
             String[] parts = currentLine.split("=|;");
             String declaration = parts[0].trim();
             String[] declParts = declaration.split("\\s+");
@@ -429,24 +384,20 @@ public class CustomIDE extends Application {
             if (parts.length > 1) {
                 value = evaluateExpression(parts[1].replace(";", "").trim(), type);
             } else {
-                // Assign default values for char, string, bool, and short
                 if (type.equals("char")) {
-                    value = '\0';  // Default null character
+                    value = '\0';
                 } else if (type.equals("string")) {
-                    value = "null"; // Default empty string
+                    value = "null";
                 } else if (type.equals("bool")) {
-                    value = false; // Default false
+                    value = false;
                 } else if (type.equals("short")) {
-                    value = (short) 0; // Default short value
+                    value = (short) 0;
                 }
             }
 
-            // Update variables map
             variables.put(varName, value);
 
-            // Draw variable box
             if (variableBoxes.containsKey(varName)) {
-                // Update existing variable box
                 Text varText = variableTexts.get(varName);
                 if (value instanceof Double || value instanceof Float) {
                     varText.setText(varName + " = " + String.format("%.2f", value));
@@ -454,40 +405,37 @@ public class CustomIDE extends Application {
                     varText.setText(varName + " = " + value);
                 }
             } else {
-                // Calculate position for new variable box
-                double startX = 10; // Start X position
-                double startY = 50 + (variables.size() - 1) * 50; // Adjust Y position dynamically
+                double startX = 10;
+                double startY = 50 + (variables.size() - 1) * 50;
 
                 Rectangle rect = new Rectangle(startX, startY, 120, 30);
                 rect.setFill(Color.LIGHTBLUE);
-                rect.setStroke(Color.BLACK);  // <--- THIS CREATES BLACK BORDER
+                rect.setStroke(Color.BLACK);
                 rect.setArcWidth(10);
                 rect.setArcHeight(10);
-
                 rect.setStroke(null);
 
-                double requiredHeight = startY + 50; // New bottom edge of the variable box
+                double requiredHeight = startY + 50;
                 if (visualizationPane.getPrefHeight() < requiredHeight) {
-                    visualizationPane.setPrefHeight(requiredHeight); // Expand pane height
+                    visualizationPane.setPrefHeight(requiredHeight);
                 }
 
-                double requiredWidth = startX + 130; // New right edge of the variable box
+                double requiredWidth = startX + 130;
                 if (visualizationPane.getPrefWidth() < requiredWidth) {
-                    visualizationPane.setPrefWidth(requiredWidth); // Expand pane width
+                    visualizationPane.setPrefWidth(requiredWidth);
                 }
 
                 Text varText = new Text(startX + 10, startY + 20, varName + " = " + (value instanceof Double || value instanceof Float ? String.format("%.2f", value) : value));
                 varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
 
-                rect.setOnMouseEntered(e -> rect.setFill(Color.LIGHTGREEN));  // Hover color
-                rect.setOnMouseExited(e -> rect.setFill(Color.LIGHTBLUE));    // Normal color
+                rect.setOnMouseEntered(e -> rect.setFill(Color.LIGHTGREEN));
+                rect.setOnMouseExited(e -> rect.setFill(Color.LIGHTBLUE));
 
                 visualizationPane.getChildren().addAll(rect, varText);
                 variableBoxes.put(varName, rect);
                 variableTexts.put(varName, varText);
 
-                // If the variable is an array, string, or vector, visualize it as partitioned boxes
                 if (type.equals("string") || type.equals("int[]") || type.equals("vector")) {
                     visualizeDataStructure(varName, value, type);
                 }
@@ -500,8 +448,7 @@ public class CustomIDE extends Application {
             String varName = parts[0].trim();
             String valueStr = parts[1].replace(";", "").trim();
 
-            // Determine the type of the variable
-            String type = "int"; // Default type
+            String type = "int";
             if (variables.containsKey(varName)) {
                 Object currentValue = variables.get(varName);
                 if (currentValue instanceof Double) {
@@ -519,210 +466,155 @@ public class CustomIDE extends Application {
                 }
             }
 
-            // Evaluate the value
             Object value;
             if (type.equals("char") && valueStr.matches("'.'")) {
-                value = valueStr.charAt(1); // Extract the character inside single quotes
+                value = valueStr.charAt(1);
             } else {
                 value = evaluateExpression(valueStr, type);
             }
-
-            // Update variable value
             variables.put(varName, value);
 
-            // Update visualization
             if (variableBoxes.containsKey(varName)) {
-                // Remove old text
                 Text oldText = variableTexts.get(varName);
                 visualizationPane.getChildren().remove(oldText);
-
-                // Add new text
                 Text newText = new Text(oldText.getX(), oldText.getY(), varName + " = " + value);
                 newText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
                 visualizationPane.getChildren().add(newText);
-
-                // Update variableTexts map
                 variableTexts.put(varName, newText);
             }
-        } else if (currentLine.matches("\\w+\\[\\d+\\]\\s*=\\s*[^;]+;")) {
-            // Handle array/vector index assignments (e.g., arr[2] = 10; or s[1] = 'a';)
+        }
+        else if (currentLine.matches("\\w+\\[\\d+\\]\\s*=\\s*[^;]+;")) {
             String[] parts = currentLine.split("=");
-            String leftSide = parts[0].trim(); // e.g., "arr[2]"
-            String valueStr = parts[1].replace(";", "").trim(); // e.g., "10"
+            String leftSide = parts[0].trim();
+            String valueStr = parts[1].replace(";", "").trim();
 
-            // Extract variable name and index
-            String varName = leftSide.split("\\[")[0]; // e.g., "arr"
-            int index = Integer.parseInt(leftSide.split("\\[")[1].replace("]", "")); // e.g., 2
-
-            // Evaluate the new value
-            Object value = evaluateExpression(valueStr, "int"); // Assuming int for simplicity
-
-            // Update the array/vector element
+            String varName = leftSide.split("\\[")[0];
+            int index = Integer.parseInt(leftSide.split("\\[")[1].replace("]", ""));
+            Object value = evaluateExpression(valueStr, "int");
             updateArrayElement(varName, index, value);
-
-            // Update visualization for the specific index
             updateDataStructureVisualization(varName, index, value);
-        } else if (currentLine.startsWith("cout")) {
-            // Handle cout statements
+        }
+        else if (currentLine.startsWith("cout")) {
             String output = evaluateCoutStatement(currentLine);
             Text outputText = new Text(10, 200, "Output: " + output);
             outputText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             visualizationPane.getChildren().add(outputText);
         }
         else if (currentLine.startsWith("if") || currentLine.startsWith("else if") || currentLine.startsWith("else")) {
-            // Handle conditional statements
             handleConditionalStatement(currentLine);
         }
         else if (currentLine.startsWith("for")) {
-            // Handle for loops
             handleForLoop(currentLine);
         }
         else if (currentLine.startsWith("while")) {
-            // Handle while loops
             handleWhileLoop(currentLine);
         }
         else if (currentLine.startsWith("do")) {
-            // Handle do-while loops
             handleDoWhileLoop(currentLine);
         }
         else if (currentLine.startsWith("switch")) {
-            // Handle switch-case statements
             handleSwitchCase(currentLine);
         }
         else if (currentLine.startsWith("int main")) {
-            // Handle main function
             handleMainFunction(currentLine);
         }
         else if (currentLine.startsWith("#include")) {
-            // Handle library inclusions
             handleLibraryInclusion(currentLine);
         }
         else if (currentLine.startsWith("return")) {
-            // Handle return statements
             handleReturnStatement(currentLine);
         }
         else if (currentLine.startsWith("break")) {
-            // Handle break statements
             handleBreakStatement();
         }
         else if (currentLine.startsWith("continue")) {
-            // Handle continue statements
             handleContinueStatement();
         }
         else if (currentLine.startsWith("void")) {
-            // Handle void functions
             handleVoidFunction(currentLine);
         }
         else if (currentLine.startsWith("class")) {
-            // Handle class definitions
             handleClassDefinition(currentLine);
         }
         else if (currentLine.startsWith("struct")) {
-            // Handle struct definitions
             handleStructDefinition(currentLine);
         }
         else if (currentLine.startsWith("typedef")) {
-            // Handle type definitions
             handleTypeDefinition(currentLine);
         }
         else if (currentLine.startsWith("enum")) {
-            // Handle enum definitions
             handleEnumDefinition(currentLine);
         }
         else if (currentLine.startsWith("namespace")) {
-            // Handle namespace definitions
             handleNamespaceDefinition(currentLine);
         }
         else if (currentLine.startsWith("using")) {
-            // Handle using directives
             handleUsingDirective(currentLine);
         }
         else if (currentLine.startsWith("template")) {
-            // Handle template definitions
             handleTemplateDefinition(currentLine);
         }
         else if (currentLine.startsWith("friend")) {
-            // Handle friend declarations
             handleFriendDeclaration(currentLine);
         }
         else if (currentLine.startsWith("extern")) {
-            // Handle extern declarations
             handleExternDeclaration(currentLine);
         }
         else if (currentLine.startsWith("static")) {
-            // Handle static declarations
             handleStaticDeclaration(currentLine);
         }
         else if (currentLine.startsWith("const")) {
-            // Handle constant declarations
             handleConstantDeclaration(currentLine);
         }
         else if (currentLine.startsWith("volatile")) {
-            // Handle volatile declarations
             handleVolatileDeclaration(currentLine);
         }
         else if (currentLine.startsWith("register")) {
-            // Handle register declarations
             handleRegisterDeclaration(currentLine);
         }
         else if (currentLine.startsWith("auto")) {
-            // Handle auto declarations
             handleAutoDeclaration(currentLine);
         }
         else if (currentLine.startsWith("typedef")) {
-            // Handle typedef declarations
             handleTypedefDeclaration(currentLine);
         }
         else if (currentLine.startsWith("asm")) {
-            // Handle assembly code
             handleAssemblyCode(currentLine);
         }
         else if (currentLine.startsWith("goto")) {
-            // Handle goto statements
             handleGotoStatement(currentLine);
         }
         else if (currentLine.startsWith("try")) {
-            // Handle try-catch blocks
             handleTryCatchBlock(currentLine);
         }
         else if (currentLine.startsWith("throw")) {
-            // Handle throw statements
             handleThrowStatement(currentLine);
         }
         else if (currentLine.startsWith("catch")) {
-            // Handle catch blocks
             handleCatchBlock(currentLine);
         }
         else if (currentLine.startsWith("finally")) {
-            // Handle finally blocks
             handleFinallyBlock(currentLine);
         }
         else if (currentLine.startsWith("new")) {
-            // Handle dynamic memory allocation
             handleDynamicMemoryAllocation(currentLine);
         }
         else if (currentLine.startsWith("delete")) {
-            // Handle dynamic memory deallocation
             handleDynamicMemoryDeallocation(currentLine);
         }
         else if (currentLine.startsWith("sizeof")) {
-            // Handle sizeof operator
             handleSizeofOperator(currentLine);
         }
         else if (currentLine.startsWith("typeid")) {
-            // Handle typeid operator
             handleTypeidOperator(currentLine);
         }
         else if (currentLine.startsWith("alignas")) {
-            // Handle alignas specifier
             handleAlignasSpecifier(currentLine);
         }
         else if (currentLine.startsWith("alignof")) {
-            // Handle alignof operator
             handleAlignofOperator(currentLine);
         }
         else if (currentLine.startsWith("and")) {
-            // Handle logical AND operator
             handleLogicalAndOperator(currentLine);
         }
     }
@@ -738,7 +630,7 @@ public class CustomIDE extends Application {
             if (evaluateCondition(condition)) {
                 System.out.println("Condition is true. Visualizing block...");
                 visualizeBlock();
-                skipToEndOfConditional(); // Skip remaining else-if and else blocks
+                skipToEndOfConditional();
             } else {
                 System.out.println("Condition is false. Skipping block...");
                 skipToNextCondition();
@@ -754,13 +646,11 @@ public class CustomIDE extends Application {
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine engine = manager.getEngineByName("JavaScript");
 
-        // Pass variables to the engine
         for (Map.Entry<String, Object> entry : variables.entrySet()) {
             engine.put(entry.getKey(), entry.getValue());
         }
-
         try {
-            // Evaluate the condition
+
             Object result = engine.eval(condition);
             System.out.println("Condition: " + condition + " | Result: " + result); // Debug statement
 
@@ -781,17 +671,15 @@ public class CustomIDE extends Application {
         while (currentLineIndex < codeLines.size()) {
             String line = codeLines.get(currentLineIndex).trim();
 
-            // Handle opening and closing braces
             if (line.equals("{")) {
                 openBraces++;
             } else if (line.equals("}")) {
                 if (openBraces == 0) {
-                    break; // End of block
+                    break;
                 }
                 openBraces--;
             }
 
-            // Visualize the current line
             updateVisualization();
             currentLineIndex++;
         }
@@ -800,20 +688,15 @@ public class CustomIDE extends Application {
         int openBraces = 0;
         while (currentLineIndex < codeLines.size()) {
             String line = codeLines.get(currentLineIndex).trim();
-
-            // Check for the end of the conditional statement
             if (line.equals("}") && openBraces == 0) {
                 break;
             }
-
-            // Handle nested blocks
             if (line.contains("{")) {
                 openBraces++;
             }
             if (line.contains("}")) {
                 openBraces--;
             }
-
             currentLineIndex++;
         }
     }
@@ -821,46 +704,32 @@ public class CustomIDE extends Application {
         int openBraces = 0;
         while (currentLineIndex < codeLines.size()) {
             String line = codeLines.get(currentLineIndex).trim();
-
-            // Check for the start of a new condition or the end of the conditional statement
             if (line.startsWith("else if") || line.startsWith("else") || (line.equals("}") && openBraces == 0)) {
                 break;
             }
-
-            // Handle nested blocks
             if (line.contains("{")) {
                 openBraces++;
             }
             if (line.contains("}")) {
                 openBraces--;
             }
-
             currentLineIndex++;
         }
     }
     private void handleForLoop(String currentLine) {
-        // Extract the initialization, condition, and update parts of the for loop
         String forContent = currentLine.substring(currentLine.indexOf('(') + 1, currentLine.lastIndexOf(')')).trim();
         String[] parts = forContent.split(";");
         String initialization = parts[0].trim();
         String condition = parts[1].trim();
         String update = parts[2].trim();
-
-        // Execute the initialization part
         evaluateExpression(initialization, "int");
 
-        // Create a visualization box for the for loop
         Rectangle loopBox = new Rectangle(10, 50 + (variables.size() - 1) * 40, 300, 200);
         loopBox.setFill(Color.LIGHTGRAY);
         loopBox.setStroke(Color.BLACK);
         visualizationPane.getChildren().add(loopBox);
-
-        // Iterate through the loop and update the visualization
         while (evaluateCondition(condition)) {
-            // Update the visualization with the current values of the loop variables
             updateVisualization();
-
-            // Execute the update part
             evaluateExpression(update, "int");
         }
     }
@@ -1019,8 +888,7 @@ public class CustomIDE extends Application {
         visualizationPane.getChildren().removeIf(node -> node instanceof Rectangle && node.getUserData() != null && node.getUserData().equals(varName));
         visualizationPane.getChildren().removeIf(node -> node instanceof Text && node.getUserData() != null && node.getUserData().equals(varName));
 
-        // Position the data structure visualization
-        double startX = 150; // Start X position for data structure visualization
+        double startX = 150;
         double startY = 50 + (variables.size() - 1) * 40;
 
         if (type.equals("string")) {
@@ -1029,18 +897,17 @@ public class CustomIDE extends Application {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
                 rect.setFill(Color.LIGHTGREEN);
                 rect.setStroke(Color.BLACK);
-                rect.setArcWidth(5); // Rounded corners
+                rect.setArcWidth(5);
                 rect.setArcHeight(5);
-                rect.setUserData(varName); // Tag the rectangle with the variable name
+                rect.setUserData(varName);
 
                 Text charText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(strValue.charAt(i)));
                 charText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-                charText.setUserData(varName); // Tag the text with the variable name
+                charText.setUserData(varName);
 
                 Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
                 indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-                indexText.setUserData(varName); // Tag the text with the variable name
-
+                indexText.setUserData(varName);
                 visualizationPane.getChildren().addAll(rect, charText, indexText);
             }
         }
@@ -1051,16 +918,15 @@ public class CustomIDE extends Application {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
                 rect.setFill(Color.LIGHTGREEN);
                 rect.setStroke(Color.BLACK);
-                rect.setUserData(varName); // Tag the rectangle with the variable name
+                rect.setUserData(varName);
 
                 Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(arrayValue[i]));
                 valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-                valueText.setUserData(varName); // Tag the text with the variable name
+                valueText.setUserData(varName);
 
                 Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
                 indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-                indexText.setUserData(varName); // Tag the text with the variable name
-
+                indexText.setUserData(varName);
                 visualizationPane.getChildren().addAll(rect, valueText, indexText);
             }
         } else if (type.equals("vector")) {
@@ -1069,15 +935,15 @@ public class CustomIDE extends Application {
                 Rectangle rect = new Rectangle(startX + i * 40, startY, 30, 30);
                 rect.setFill(Color.LIGHTGREEN);
                 rect.setStroke(Color.BLACK);
-                rect.setUserData(varName); // Tag the rectangle with the variable name
+                rect.setUserData(varName);
 
                 Text valueText = new Text(startX + i * 40 + 10, startY + 20, String.valueOf(vectorValue.get(i)));
                 valueText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-                valueText.setUserData(varName); // Tag the text with the variable name
+                valueText.setUserData(varName);
 
                 Text indexText = new Text(startX + i * 40 + 10, startY + 50, String.valueOf(i));
                 indexText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-                indexText.setUserData(varName); // Tag the text with the variable name
+                indexText.setUserData(varName);
 
                 visualizationPane.getChildren().addAll(rect, valueText, indexText);
             }
@@ -1090,26 +956,20 @@ public class CustomIDE extends Application {
             if (dataStructure instanceof String) {
                 String strValue = (String) dataStructure;
                 if (index >= 0 && index < strValue.length()) {
-                    // Update the string value
                     strValue = strValue.substring(0, index) + value + strValue.substring(index + 1);
                     variables.put(varName, strValue);
-                    // Revisualize the string
                     visualizeDataStructure(varName, strValue, "string");
                 }
             } else if (dataStructure instanceof int[]) {
                 int[] arrayValue = (int[]) dataStructure;
                 if (index >= 0 && index < arrayValue.length) {
-                    // Update the array value
                     arrayValue[index] = (int) value;
-                    // Revisualize the array
                     visualizeDataStructure(varName, arrayValue, "int[]");
                 }
             } else if (dataStructure instanceof List) {
                 List<?> vectorValue = (List<?>) dataStructure;
                 if (index >= 0 && index < vectorValue.size()) {
-                    // Update the vector value
                     ((List<Object>) vectorValue).set(index, value);
-                    // Revisualize the vector
                     visualizeDataStructure(varName, vectorValue, "vector");
                 }
             }
@@ -1156,9 +1016,9 @@ public class CustomIDE extends Application {
         Stack<Number> stack = new Stack<>();
 
         for (String token : postfix) {
-            if (token.matches("\\d+")) {  // Integer case
+            if (token.matches("\\d+")) {
                 stack.push(Integer.parseInt(token));
-            } else if (token.matches("\\d+\\.\\d+")) {  // Double case
+            } else if (token.matches("\\d+\\.\\d+")) {
                 stack.push(Double.parseDouble(token));
             } else if (variables.containsKey(token)) {
                 stack.push((Number) variables.get(token));
@@ -1189,7 +1049,7 @@ public class CustomIDE extends Application {
                         case "%": stack.push(a.intValue() % b.intValue()); break;
 
                     }
-                } else { // At least one operand is a Double
+                } else {
                     double aVal = a.doubleValue();
                     double bVal = b.doubleValue();
                     double result=0;
@@ -1243,7 +1103,6 @@ public class CustomIDE extends Application {
 
 
     private String evaluateCoutStatement(String coutLine) {
-        // Extract the expression inside cout
         String expression = coutLine.replace("cout", "").replace("<<", "").replace(";", "").trim();
         return String.valueOf(evaluateExpression(expression, "int"));
     }
@@ -1252,10 +1111,10 @@ public class CustomIDE extends Application {
         String code = codeArea.getText();
         codeLines = Arrays.asList(code.split("\n"));
         currentLineIndex = 0;
-        variables.clear(); // Reset variables
-        variableBoxes.clear(); // Reset variable boxes
-        variableTexts.clear(); // Reset variable texts
-        visualizationPane.getChildren().clear(); // Clear visualization pane
+        variables.clear();
+        variableBoxes.clear();
+        variableTexts.clear();
+        visualizationPane.getChildren().clear();
         updateVisualization();
     }
     private void visualizeArray(String varName, Object value) {
@@ -1330,7 +1189,7 @@ public class CustomIDE extends Application {
             visualizeArray(varName, variables.get(varName));
         }
     }
-    // Add this method to the "Visualize" button action
+
     private void startVisualization() {
         initializeCodeLines();
         currentLineIndex = 0;
@@ -1338,15 +1197,10 @@ public class CustomIDE extends Application {
         updateVisualization();
     }
 
-
-
     private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
-
-        // Load the CSS file
         menuBar.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
 
-        // File Menu
         Menu fileMenu = new Menu("File");
         MenuItem openFile = new MenuItem("Open");
         MenuItem saveFile = new MenuItem("Save");
@@ -1354,19 +1208,14 @@ public class CustomIDE extends Application {
         MenuItem closeFile = new MenuItem("Close");
         fileMenu.getItems().addAll(newFile, openFile, saveFile, closeFile);
 
-        // Run Menu
         Menu runMenu = new Menu("Run");
         MenuItem runCode = new MenuItem("Run");
-
         runMenu.getItems().addAll(runCode);
 
-
-        // Debug Menu
         Menu debugMenu = new Menu("Debug");
         MenuItem debugCode = new MenuItem("Debug");
         debugMenu.getItems().add(debugCode);
 
-        // Tools Menu
         Menu toolsMenu = new Menu("Tools");
         MenuItem visualizeCode = new MenuItem("Visualize");
         MenuItem formatCode = new MenuItem("Code Template");
@@ -1375,29 +1224,21 @@ public class CustomIDE extends Application {
         MenuItem spaceComplexity = new MenuItem("Space Complexity");
         MenuItem deleteCode = new MenuItem("Clear Code");
         toolsMenu.getItems().addAll(visualizeCode,formatCode, analyzeCode,timeComplexity,spaceComplexity, deleteCode);
-        timeComplexity.setOnAction(e -> calculateTimeComplexity());
-        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
-        visualizeCode.setOnAction(e -> startVisualization());
-        // Setting Menu
+
+
         Menu settingMenu = new Menu("Setting");
         Menu themeMenu = new Menu("Theme");
         MenuItem lightMode = new MenuItem("Light Mode");
         MenuItem darkMode = new MenuItem("Dark Mode");
-
-
         themeMenu.getItems().addAll(lightMode, darkMode);
         settingMenu.getItems().addAll(themeMenu);
 
-        // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem aboutApp = new MenuItem("About");
         MenuItem documentation = new MenuItem("Documentation");
         helpMenu.getItems().addAll(documentation, aboutApp);
-
-        // Add Menus to MenuBar
         menuBar.getMenus().addAll(fileMenu, runMenu, debugMenu, toolsMenu, settingMenu, helpMenu);
 
-        // Event Handlers
         openFile.setOnAction(e -> openFile(primaryStage));
         newFile.setOnAction(e -> newFile(primaryStage));
         saveFile.setOnAction(e -> saveFile(primaryStage));
@@ -1414,25 +1255,24 @@ public class CustomIDE extends Application {
         visualizeCode.setOnAction(e -> toggleVisualization());
         timeComplexity.setOnAction(e -> calculateTimeComplexity());
         spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
+        timeComplexity.setOnAction(e -> calculateTimeComplexity());
+        spaceComplexity.setOnAction(e -> calculateSpaceComplexity());
+        visualizeCode.setOnAction(e -> startVisualization());
 
         return menuBar;
     }
 
     private CodeArea createCodeArea() {
         CodeArea codeArea = new CodeArea();
-
-        // Set the custom paragraph graphic factory with the red arrow and line numbers
         codeArea.setParagraphGraphicFactory(paraIdx -> {
             HBox hbox = new HBox();
             hbox.setSpacing(5);
             hbox.setStyle("-fx-background-color: #cdf7e9; -fx-padding: 2px;"); // Gray background
 
-            // Red arrow indicator
             Label arrow = new Label("➤"); // Thicker arrow
             arrow.setStyle("-fx-text-fill: red; -fx-font-size: 18px; -fx-font-weight: bold;");
             arrow.visibleProperty().bind(currentLineProperty.isEqualTo(paraIdx));
 
-            // Line number
             Label lineNumber = new Label(String.valueOf(paraIdx + 1));
             lineNumber.setStyle("-fx-font-family: monospace; -fx-font-size: 14px;");
 
@@ -1440,20 +1280,15 @@ public class CustomIDE extends Application {
             return hbox;
         });
 
-        // Syntax highlighting listener
         codeArea.textProperty().addListener((obs, oldText, newText) -> applySyntaxHighlighting(newText));
-
-        // Default font size
         final IntegerProperty fontSize = new SimpleIntegerProperty(14);
 
-        // Apply initial style
         codeArea.styleProperty().bind(Bindings.concat(
                 "-fx-font-family: 'Courier New', 'Courier', 'monospace'; ",
                 "-fx-font-size: ", fontSize.asString(), "px; ",
                 "-fx-text-fill: #000000;"
         ));
 
-        // Handle Zoom In / Zoom Out using Mouse Scroll + Ctrl
         codeArea.setOnScroll(event -> {
             if (event.isControlDown()) {
                 if (event.getDeltaY() > 0) { // Scroll Up -> Zoom In
@@ -1464,15 +1299,14 @@ public class CustomIDE extends Application {
             }
         });
 
-        // Handle Zoom In / Zoom Out using Keyboard Shortcuts (Ctrl + '+' and Ctrl + '-')
         codeArea.setOnKeyPressed(event -> {
             if (event.isControlDown()) {
                 switch (event.getCode()) {
-                    case EQUALS: // Ctrl + '=' (Zoom In)
-                    case PLUS: // Ctrl + '+'
+                    case EQUALS:
+                    case PLUS:
                         fontSize.set(Math.min(fontSize.get() + 2, 30));
                         break;
-                    case MINUS: // Ctrl + '-'
+                    case MINUS:
                         fontSize.set(Math.max(fontSize.get() - 2, 10));
                         break;
                     default:
@@ -1481,11 +1315,9 @@ public class CustomIDE extends Application {
             }
         });
 
-        // Apply light mode by default
         codeArea.getStyleClass().add("light-mode");
-        codeArea.getStylesheets().add(getClass().getResource("/Main.css").toExternalForm());
+        codeArea.getStylesheets().add(getClass().getResource("Main.css").toExternalForm());
 
-        // Handle auto-formatting for braces, parentheses, and brackets
         codeArea.setOnKeyTyped(event -> {
             String typedChar = event.getCharacter();
             if (typedChar.isEmpty()) return;
@@ -1509,41 +1341,36 @@ public class CustomIDE extends Application {
 
     private void showComplexityPane(String complexityType, String complexityValue) {
         Stage complexityStage = new Stage();
-        complexityStage.initStyle(StageStyle.TRANSPARENT); // Removes window decorations
+        complexityStage.initStyle(StageStyle.TRANSPARENT);
 
-        // Main label for complexity value
         Label complexityLabel = new Label(complexityValue);
-        complexityLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 26)); // Bigger & bold text
-        complexityLabel.setTextFill(Color.WHITE); // White text
+        complexityLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 26));
+        complexityLabel.setTextFill(Color.WHITE);
         complexityLabel.setPadding(new Insets(15));
 
-        // Subtle glow effect without making text blurry
         DropShadow glow = new DropShadow();
         glow.setColor(Color.WHITE);
-        glow.setRadius(3);  // Reduced glow radius for sharper text
-        glow.setSpread(0.2); // Less spread for subtle effect
-        glow.setBlurType(BlurType.GAUSSIAN); // Keeps text smooth and clear
+        glow.setRadius(3);
+        glow.setSpread(0.2);
+        glow.setBlurType(BlurType.GAUSSIAN);
         complexityLabel.setEffect(glow);
 
-        // **New Top Banner for Complexity Type with Full Name**
         String fullComplexityType = complexityType.equalsIgnoreCase("Time") ? "Time Complexity" :
                 complexityType.equalsIgnoreCase("Space") ? "Space Complexity" : complexityType;
 
-        Label headerLabel = new Label(fullComplexityType); // Using full complexity type
-        headerLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 20)); // Bigger text
-        headerLabel.setTextFill(Color.BLACK); // Black text for contrast
+        Label headerLabel = new Label(fullComplexityType);
+        headerLabel.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 20));
+        headerLabel.setTextFill(Color.BLACK);
         headerLabel.setAlignment(Pos.TOP_CENTER);
         headerLabel.setPadding(new Insets(10));
         headerLabel.setMaxWidth(Double.MAX_VALUE);
-        headerLabel.setStyle("-fx-background-color: yellow;"); // **Yellow strip on top**
+        headerLabel.setStyle("-fx-background-color: yellow;");
 
-        // Main layout
-        VBox layout = new VBox(headerLabel, complexityLabel); // Added header at the top
+        VBox layout = new VBox(headerLabel, complexityLabel);
         layout.setAlignment(Pos.CENTER);
         layout.setStyle("-fx-background-color: #000000; -fx-border-color: #444; -fx-border-width: 2px; -fx-border-radius: 8px;");
-        layout.setPadding(new Insets(30)); // Increased padding for a balanced layout
+        layout.setPadding(new Insets(30));
 
-        // Increase the card size
         double cardWidth = 420;
         double cardHeight = 260;
 
@@ -1551,24 +1378,21 @@ public class CustomIDE extends Application {
         scene.setFill(Color.TRANSPARENT);
         complexityStage.setScene(scene);
 
-        // Set the pane at the center of the screen
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
         complexityStage.setX((screenBounds.getWidth() - cardWidth) / 2);
         complexityStage.setY((screenBounds.getHeight() - cardHeight) / 2);
 
-        // Close the pane when clicking outside
         scene.setOnMouseClicked(event -> complexityStage.close());
 
         complexityStage.show();
     }
-
-
 
     private void calculateTimeComplexity() {
         String code = codeArea.getText();
         String timeComplexity = analyzeTimeComplexity(code);
         showComplexityPane("Time", timeComplexity);
     }
+
     private String analyzeTimeComplexity(String code) {
         String[] lines = code.split("\n");
         int maxNestedLoops = 0;
@@ -1582,31 +1406,26 @@ public class CustomIDE extends Application {
         for (String line : lines) {
             line = line.trim();
 
-            // Check for loops
             if (line.startsWith("for") || line.startsWith("while")) {
                 currentDepth++;
                 maxNestedLoops = Math.max(maxNestedLoops, currentDepth);
 
-                // Check for logarithmic loops (e.g., i *= 2 or i /= 2)
                 if (line.contains("*=") || line.contains("/=")) {
                     hasLogarithmicLoop = true;
                 }
 
-                // Check for different ranges in nested loops
                 if (line.contains("i<n") && line.contains("j<m")) {
                     hasDifferentRanges = true;
                 }
             }
 
-            // Check for end of loop
             if (line.equals("}")) {
                 if (currentDepth > 0) {
                     currentDepth--;
                 }
             }
 
-            // Check for recursion
-            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+            if (line.contains("function_name(")) {
                 hasRecursion = true;
             }
 
@@ -1620,30 +1439,28 @@ public class CustomIDE extends Application {
             }
         }
 
-        // Determine the complexity based on the maximum depth of nested loops
         if (maxNestedLoops == 0 && !hasRecursion) {
-            complexities.add("O(1)"); // Constant time
+            complexities.add("O(1)");
         } else if (maxNestedLoops == 1 && !hasRecursion) {
             if (hasLogarithmicLoop) {
-                complexities.add("O(log n)"); // Logarithmic time
+                complexities.add("O(log n)");
             } else {
-                complexities.add("O(n)"); // Linear time
+                complexities.add("O(n)");
             }
         } else if (maxNestedLoops == 2 && !hasRecursion) {
             if (hasDifferentRanges) {
-                complexities.add("O(n * m)"); // Different ranges
+                complexities.add("O(n * m)");
             } else {
-                complexities.add("O(n²)"); // Quadratic time
+                complexities.add("O(n²)");
             }
         } else if (hasLinearithmic) {
-            complexities.add("O(n log n)"); // Linearithmic time
+            complexities.add("O(n log n)");
         } else if (hasRecursion) {
-            complexities.add("O(2ⁿ)"); // Exponential time (for simplicity)
+            complexities.add("O(2ⁿ)");
         } else {
-            complexities.add("O(n^" + maxNestedLoops + ")"); // Polynomial time (k = maxNestedLoops)
+            complexities.add("O(n^" + maxNestedLoops + ")");
         }
 
-        // Return the maximum complexity
         return complexities.stream().max(String::compareTo).orElse("O(1)");
     }
 
@@ -1671,37 +1488,31 @@ public class CustomIDE extends Application {
         for (String line : lines) {
             line = line.trim();
 
-            // Count variables
             if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
                 variableCount++;
             }
 
-            // Count array sizes
             if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String sizeStr = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\].*", "$1");
                 if (sizeStr.matches("\\d+")) {
                     arraySize += Integer.parseInt(sizeStr);
                 } else {
-                    arraySize += 1; // Assume dynamic size
+                    arraySize += 1;
                 }
             }
-
-            // Count matrix sizes
             if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
                 if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
                     matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
                 } else {
-                    matrixSize += 1; // Assume dynamic size
+                    matrixSize += 1;
                 }
             }
 
-            // Check for 2D vectors
             if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 has2DVector = true;
             }
 
-            // Check for 1D vectors
             if (line.matches("vector\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasVector = true;
             }
@@ -1716,61 +1527,49 @@ public class CustomIDE extends Application {
                 hasLinkedList = true;
             }
 
-            // Count recursive depth
-            if (line.contains("function_name(")) { // Replace "function_name" with the actual function name
+            if (line.contains("function_name(")) {
                 recursiveDepth++;
             }
 
-            // Check for dynamic memory allocation
             if (line.contains("new") || line.contains("malloc") || line.contains("calloc")) {
                 hasDynamicAllocation = true;
             }
         }
 
-        // Determine the space complexity based on the analysis
         if (variableCount == 0 && arraySize == 0 && matrixSize == 0 && recursiveDepth == 0 && !hasDynamicAllocation && !hasVector && !has2DVector) {
-            return "O(1)"; // Constant space
+            return "O(1)";
         } else if (matrixSize > 0 || has2DVector) {
-            return "O(n²)"; // Quadratic space (due to matrices or 2D vectors)
+            return "O(n²)";
         } else if (arraySize > 0 || hasVector) {
-            return "O(n)"; // Linear space (due to arrays or 1D vectors)
+            return "O(n)";
         } else if (hasVector || hasQueue || hasStack || hasLinkedList) {
-            return "O(n)"; // Linear space (due to data structures)
+            return "O(n)";
         } else if (recursiveDepth > 0) {
-            return "O(n)"; // Linear space (due to recursion)
+            return "O(n)";
         } else if (hasDynamicAllocation) {
-            return "O(n)"; // Linear space (due to dynamic memory allocation)
+            return "O(n)";
         } else {
-            return "O(1)"; // Default to constant space
+            return "O(1)";
         }
     }
 
     private void handleAutoFormatSquareBracket(CodeArea codeArea) {
         int caretPosition = codeArea.getCaretPosition();
-
-        // Insert the formatted structure: []
         codeArea.insertText(caretPosition, "]");
-
-        // Move the cursor to the middle of the brackets
         codeArea.moveTo(caretPosition);
     }
     private void handleAutoFormatParenthesis(CodeArea codeArea) {
         int caretPosition = codeArea.getCaretPosition();
-
-        // Insert the formatted structure: ()
         codeArea.insertText(caretPosition, ")");
-
-        // Move the cursor to the middle of the brackets
         codeArea.moveTo(caretPosition);
     }
 
     private void handleAutoFormatCurlyBrace(CodeArea codeArea) {
         int caretPosition = codeArea.getCaretPosition();
         codeArea.insertText(caretPosition, "\n\n}");
-        codeArea.moveTo(caretPosition + 1); // Move caret between the curly braces
+        codeArea.moveTo(caretPosition + 1);
     }
     private SplitPane createSplitPane() {
-        // Create output area
         outputArea = new TextArea();
         outputArea.setEditable(false);
         outputArea.setStyle("-fx-control-inner-background: black; " +
@@ -1781,37 +1580,35 @@ public class CustomIDE extends Application {
                 "-fx-border-color: transparent; " +
                 "-fx-border-width: 1.5px; " +
                 "-fx-padding: 0px;");
+
         outputArea.setPrefHeight(150);
 
-        // Create input area
         inputArea = new TextArea();
         inputArea.setPromptText("Enter input here...");
         inputArea.setStyle(
-                "-fx-control-inner-background: #ced9d7; " + /* Soft blue background */
+                "-fx-control-inner-background: #ced9d7; " +
                         "-fx-text-fill: #2c3e50; " +
                         "-fx-font-family: 'Consolas'; " +
                         "-fx-font-size: 14px; " +
-                        "-fx-border-color: #89CFF0; " + /* Soft blue border */
+                        "-fx-border-color: #89CFF0; " +
                         "-fx-border-width: 2px; " +
-                        "-fx-background-radius: 8px; " + /* Rounded corners */
+                        "-fx-background-radius: 8px; " +
                         "-fx-padding: 3px; " +
                         "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
         );
 
-        // Hover effect - Brighter blue glow
         inputArea.setOnMouseEntered(e -> inputArea.setStyle(
-                "-fx-control-inner-background: #ced9d7; " + /* Slightly darker blue */
+                "-fx-control-inner-background: #ced9d7; " +
                         "-fx-text-fill: #2c3e50; " +
                         "-fx-font-family: 'Consolas'; " +
-                        "-fx-font-size: 14px; " +/* Brighter blue border */
+                        "-fx-font-size: 14px; " +
                         "-fx-border-width: 3px; " +
                         "-fx-background-radius: 8px; " +
                         "-fx-padding: 3px; " +
-                        "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 255, 0.3), 8, 0, 0, 3);" + /* Blue glow */
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 255, 0.3), 8, 0, 0, 3);" +
                         "-fx-prompt-text-fill: rgba(44, 62, 80, 0.6);"
         ));
 
-        // Reset hover effect
         inputArea.setOnMouseExited(e -> inputArea.setStyle(
                 "-fx-control-inner-background: #dce6e4; " +
                         "-fx-text-fill: #2c3e50; " +
@@ -1823,40 +1620,22 @@ public class CustomIDE extends Application {
                         "-fx-prompt-text-fill: rgba(44, 62, 80, 0.5);"
         ));
 
-        // Code area
         codeArea = createCodeArea();
         VirtualizedScrollPane<CodeArea> scrollableCodeArea = new VirtualizedScrollPane<>(codeArea);
-
-        // Create SplitPane
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(Orientation.VERTICAL);
-
-        // **Hide divider initially & add blue hover effect**
         splitPane.setStyle("-fx-divider-color: transparent;");
-
-        // Hover - Soft Blue Divider
-        splitPane.setOnMouseEntered(e -> splitPane.setStyle("-fx-divider-color: rgba(30, 144, 255, 0.5);")); // DodgerBlue
-
-        // Click Effect - Glowing Blue
-        splitPane.setOnMousePressed(e -> splitPane.setStyle("-fx-divider-color: rgba(0, 102, 204, 1);")); // Deep Blue
-
-        // Release - Fade Out Effect
+        splitPane.setOnMouseEntered(e -> splitPane.setStyle("-fx-divider-color: rgba(30, 144, 255, 0.5);"));
+        splitPane.setOnMousePressed(e -> splitPane.setStyle("-fx-divider-color: rgba(0, 102, 204, 1);"));
         splitPane.setOnMouseReleased(e -> {
             new Timeline(new KeyFrame(Duration.millis(300), evt ->
                     splitPane.setStyle("-fx-divider-color: transparent;"))
             ).play();
         });
-
-        // Add areas to the split pane
         splitPane.getItems().addAll(scrollableCodeArea, inputArea, outputArea);
-
-        // Set divider positions (code gets 70%, input/output get 30%)
         splitPane.setDividerPositions(0.7, 0.85);
-
         return splitPane;
     }
-
-
 
     private void switchToFile(String newFileName) {
         fileContentMap.put(currentFileName, codeArea.getText());
@@ -1869,11 +1648,10 @@ public class CustomIDE extends Application {
         fileListView.setCellFactory(lv -> new ListCell<String>() {
             private final HBox hbox = new HBox();
             private final Label fileNameLabel = new Label();
-            private final Label closeButton = new Label("✕"); // Unicode for 'X'
-            private final Region spacer = new Region(); // Spacer to push the close button to the end
+            private final Label closeButton = new Label("✕");
+            private final Region spacer = new Region();
 
             {
-                // Styling the close button
                 closeButton.setStyle(
                         "-fx-text-fill: #2c3e50; " +
                                 "-fx-font-size: 12px; " +
@@ -1881,7 +1659,6 @@ public class CustomIDE extends Application {
                                 "-fx-padding: 0 0 0 5px;"
                 );
 
-                // Hover effect for the close button
                 closeButton.setOnMouseEntered(e -> closeButton.setStyle(
                         "-fx-text-fill: red; " +
                                 "-fx-font-size: 12px; " +
@@ -1896,7 +1673,6 @@ public class CustomIDE extends Application {
                                 "-fx-padding: 0 0 0 5px;"
                 ));
 
-                // Action when close button is clicked
                 closeButton.setOnMouseClicked(e -> {
                     String item = getItem();
                     if (item != null) {
@@ -1908,8 +1684,7 @@ public class CustomIDE extends Application {
                     }
                 });
 
-                // Configure the HBox layout
-                HBox.setHgrow(spacer, Priority.ALWAYS); // Spacer will take up all available space
+                HBox.setHgrow(spacer, Priority.ALWAYS);
                 hbox.getChildren().addAll(fileNameLabel, spacer, closeButton);
                 hbox.setAlignment(Pos.CENTER_LEFT);
             }
@@ -1925,49 +1700,44 @@ public class CustomIDE extends Application {
                     setGraphic(hbox);
                     setStyle(
                             "-fx-padding: 10px 14px; " +
-                                    "-fx-font-size: 14px; " + // Default font size
+                                    "-fx-font-size: 14px; " +
                                     "-fx-font-family: 'Segoe UI', sans-serif; " +
-                                    "-fx-text-fill: #2c3e50; " + /* Dark blue text */
-                                    "-fx-background-color: transparent; " + // Transparent background for items
+                                    "-fx-text-fill: #2c3e50; " +
+                                    "-fx-background-color: transparent; " +
                                     "-fx-transition: all 0.3s ease-in-out;"
                     );
 
-                    // Hover Effect: Light glow around the item with shadow
                     setOnMouseEntered(e -> {
                         if (isSelected()) {
-                            // Apply both selection and hover styles
                             setStyle(
-                                    "-fx-background-color: rgba(173, 216, 230, 0.5); " + /* Slightly transparent light blue */
+                                    "-fx-background-color: rgba(173, 216, 230, 0.5); " +
                                             "-fx-text-fill: white; " +
                                             "-fx-font-weight: bold; " +
-                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-font-size: 16px; " +
                                             "-fx-padding: 10px 14px; " +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);"
                             );
                         } else {
-                            // Apply only hover style
                             setStyle(
-                                    "-fx-background-color: rgba(173, 216, 230, 0.3); " + /* Soft transparent light blue */
+                                    "-fx-background-color: rgba(173, 216, 230, 0.3); " +
                                             "-fx-text-fill: white; " +
                                             "-fx-padding: 10px 14px; " +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5);"  // Subtle shadow for glowing effect
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(173, 216, 230, 0.7), 12, 0, 0, 5);"
                             );
                         }
                     });
 
                     setOnMouseExited(e -> {
                         if (isSelected()) {
-                            // Revert to selection style only
                             setStyle(
-                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " +
                                             "-fx-text-fill: white; " +
                                             "-fx-font-weight: bold; " +
-                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-font-size: 16px; " +
                                             "-fx-padding: 10px 14px; " +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);"
                             );
                         } else {
-                            // Revert to default style
                             setStyle(
                                     "-fx-background-color: transparent; " +
                                             "-fx-text-fill: #2c3e50; " +
@@ -1977,22 +1747,21 @@ public class CustomIDE extends Application {
                         }
                     });
 
-                    // Selection Effect: Deep blue with stronger glow, larger font size, and darker shadow
                     selectedProperty().addListener((obs, wasSelected, isSelected) -> {
                         if (isSelected) {
                             setStyle(
-                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " + /* Slightly transparent deep blue */
+                                    "-fx-background-color: rgba(0, 102, 204, 0.4); " +
                                             "-fx-text-fill: white; " +
                                             "-fx-font-weight: bold; " +
-                                            "-fx-font-size: 16px; " + // Slightly larger font size
+                                            "-fx-font-size: 16px; " +
                                             "-fx-padding: 10px 14px; " +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);" // Darker and more prominent shadow
+                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 15, 0, 0, 5);"
                             );
                         } else {
                             setStyle(
                                     "-fx-background-color: transparent; " +
                                             "-fx-text-fill: #2c3e50; " +
-                                            "-fx-font-size: 14px; " + // Reset to default font size
+                                            "-fx-font-size: 14px; " +
                                             "-fx-padding: 10px 14px; " +
                                             "-fx-effect: none;"
                             );
@@ -2002,22 +1771,19 @@ public class CustomIDE extends Application {
             }
         });
 
-        // Customizing File ListView Appearance
         fileListView.setStyle(
-                "-fx-background-color: rgba(173, 216, 230, 0.2); " + // Slightly transparent light blue background
-                        "-fx-border-color: transparent; " + // Remove border
-                        "-fx-padding: 0; " + // Remove padding
-                        "-fx-effect: none;" // Remove shadow effect
+                "-fx-background-color: rgba(173, 216, 230, 0.2); " +
+                        "-fx-border-color: transparent; " +
+                        "-fx-padding: 0; " +
+                        "-fx-effect: none;"
         );
 
-        // Selection Handling
         fileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.equals(currentFileName)) {
                 switchToFile(newVal);
             }
         });
     }
-
 
     private void openFile(Stage stage) {
         if (hasUnsavedChanges()) {
@@ -2126,16 +1892,13 @@ public class CustomIDE extends Application {
         }
     }
 
-
     private void runCode() {
         try {
             String code = codeArea.getText();
-
             File tempFile = File.createTempFile("CustomIDE", ".cpp");
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
                 writer.write(code);
             }
-
 
             ProcessBuilder compileProcess = new ProcessBuilder("g++", tempFile.getAbsolutePath(), "-o", tempFile.getParent() + "/temp");
             Process compile = compileProcess.start();
@@ -2144,15 +1907,12 @@ public class CustomIDE extends Application {
             if (compile.exitValue() == 0) {
                 ProcessBuilder runProcess = new ProcessBuilder(tempFile.getParent() + "/temp");
                 runProcess.redirectErrorStream(true);
-
                 Process run = runProcess.start();
-
 
                 try (BufferedWriter processInput = new BufferedWriter(new OutputStreamWriter(run.getOutputStream()))) {
                     processInput.write(inputArea.getText());
                     processInput.flush();
                 }
-
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
                 StringBuilder output = new StringBuilder();
@@ -2196,7 +1956,6 @@ public class CustomIDE extends Application {
             try {
                 String code = codeArea.getText();
                 System.out.println("Code to debug:\n" + code);
-
                 File tempFile = File.createTempFile("CustomIDE", ".cpp");
                 System.out.println("Temporary file path: " + tempFile.getAbsolutePath());
 
@@ -2214,14 +1973,13 @@ public class CustomIDE extends Application {
 
                     ProcessBuilder debugProcess = new ProcessBuilder("gdb", tempFile.getParent() + "/temp");
                     debugProcess.redirectErrorStream(true);
-
                     Process debug = debugProcess.start();
 
                     try (BufferedWriter debugInput = new BufferedWriter(new OutputStreamWriter(debug.getOutputStream()))) {
                         String userInput = inputArea.getText();
-                        debugInput.write("break main\n"); // Set a breakpoint at main
-                        debugInput.write("run\n");        // Run the program
-                        debugInput.write(userInput + "\n"); // Additional user commands if needed
+                        debugInput.write("break main\n");
+                        debugInput.write("run\n");
+                        debugInput.write(userInput + "\n");
                         debugInput.flush();
                     }
 
@@ -2236,7 +1994,6 @@ public class CustomIDE extends Application {
 
                     Platform.runLater(() -> outputArea.setText(debugOutput.toString()));
                 } else {
-                    // Capture the error message from the compiler
                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(compile.getErrorStream()));
                     StringBuilder errorMessage = new StringBuilder();
                     String line;
@@ -2244,7 +2001,6 @@ public class CustomIDE extends Application {
                         errorMessage.append(line).append("\n");
                     }
                     System.err.println("Compilation errors: " + errorMessage);
-
                     Platform.runLater(() -> outputArea.setText("Compilation failed:\n" + errorMessage.toString()));
                 }
 
@@ -2259,7 +2015,6 @@ public class CustomIDE extends Application {
             }
         }).start();
     }
-
 
     private void deleteCode() {
         codeArea.clear();
@@ -2285,32 +2040,25 @@ public class CustomIDE extends Application {
 
     private void codeAnalyze() {
         String code = codeArea.getText();
-
-        // Basic metrics
         int lines = code.split("\n").length;
         int words = code.split("\\s+").length;
         int characters = code.length();
 
-        // Data structures for analysis
         Set<String> variablesSet = new HashSet<>();
         Set<String> functionsSet = new HashSet<>();
         Set<String> classesSet = new HashSet<>();
         Set<String> dataStructuresSet = new HashSet<>();
         Set<String> algorithmsSet = new HashSet<>();
 
-        // Regex patterns
         Pattern variablePattern = Pattern.compile("\\b(int|double|float|char|string|long|short|bool|auto)\\s+(\\w+)\\b(?!\\s*\\()");
-
         Pattern classPattern = Pattern.compile("\\b(class|struct)\\s+(\\w+)");
         Pattern functionPattern = Pattern.compile("\\b(\\w+)\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*(?:\\{|\\n)");
         Pattern dataStructurePattern = Pattern.compile("\\b(vector|list|deque|set|map|unordered_map|unordered_set|stack|queue|priority_queue|array|bitset|forward_list|shared_ptr|unique_ptr|weak_ptr|tuple|pair)\\b");
         Pattern algorithmPattern = Pattern.compile("\\b(sort|find|binary_search|count|accumulate|reverse|shuffle|lower_bound|upper_bound|merge|quick_sort|dijkstra|kruskal|prim|floyd_warshall)\\b");
-
-        // Analyze variables
         Matcher variableMatcher = variablePattern.matcher(code);
         StringBuilder variables = new StringBuilder("Variables Created:\n");
         while (variableMatcher.find()) {
-            String variable = variableMatcher.group(2); // Capture variable name
+            String variable = variableMatcher.group(2);
             if (variablesSet.add(variable)) {
                 variables.append(variable).append("\n");
             }
@@ -2319,11 +2067,10 @@ public class CustomIDE extends Application {
             variables.append("None\n");
         }
 
-        // Analyze classes and structs
         Matcher classMatcher = classPattern.matcher(code);
         StringBuilder classes = new StringBuilder("Classes/Structs Defined:\n");
         while (classMatcher.find()) {
-            String className = classMatcher.group(2); // Capture class/struct name
+            String className = classMatcher.group(2);
             if (classesSet.add(className)) {
                 classes.append(className).append("\n");
             }
@@ -2332,11 +2079,10 @@ public class CustomIDE extends Application {
             classes.append("None\n");
         }
 
-        // Analyze functions
         Matcher functionMatcher = functionPattern.matcher(code);
         StringBuilder functions = new StringBuilder("Functions Defined:\n");
         while (functionMatcher.find()) {
-            String functionName = functionMatcher.group(2); // Capture function name
+            String functionName = functionMatcher.group(2);
             if (functionsSet.add(functionName)) {
                 functions.append(functionName).append("\n");
             }
@@ -2345,7 +2091,6 @@ public class CustomIDE extends Application {
             functions.append("None\n");
         }
 
-        // Analyze data structures
         Matcher dataStructureMatcher = dataStructurePattern.matcher(code);
         StringBuilder dataStructures = new StringBuilder("Data Structures Used:\n");
         while (dataStructureMatcher.find()) {
@@ -2358,7 +2103,6 @@ public class CustomIDE extends Application {
             dataStructures.append("None\n");
         }
 
-        // Analyze algorithms
         Matcher algorithmMatcher = algorithmPattern.matcher(code);
         StringBuilder algorithms = new StringBuilder("Algorithms Detected:\n");
         while (algorithmMatcher.find()) {
@@ -2371,7 +2115,6 @@ public class CustomIDE extends Application {
             algorithms.append("None\n");
         }
 
-        // Feedback for code quality
         String feedback = "Feedback:\n"
                 + "1. Ensure variable names are meaningful and self-explanatory.\n"
                 + "2. Use comments to describe complex logic.\n"
@@ -2381,37 +2124,31 @@ public class CustomIDE extends Application {
                 + "6. Avoid global variables; prefer local scope where possible.\n"
                 + "7. Use const-correctness for variables and functions where applicable.\n";
 
-        // Compile analysis results
         String analysis = String.format(
                 "Code Analysis:\nLines: %d\nWords: %d\nCharacters: %d\n\n%s\n%s\n%s\n%s\n%s\n\n%s",
                 lines, words, characters, variables.toString(), classes.toString(), functions.toString(),
                 dataStructures.toString(), algorithms.toString(), feedback);
 
-        // Display results in the output area// Replace with actual analysis
         outputArea.setText(analysis);
     }
-
-
 
     private void codeFormat() {
         String code = codeArea.getText();
         StringBuilder formattedCode = new StringBuilder();
-
         Pattern classNamePattern = Pattern.compile("\\bclass\\s+(\\w+)\\s*\\{");
         Matcher classMatcher = classNamePattern.matcher(code);
 
         while (classMatcher.find()) {
             String className = classMatcher.group(1);
             System.out.println("Class name: " + className);
-
             Pattern classPattern = Pattern.compile(
                     "class\\s+" + className + "\\s*\\{[\\s\\S]*?\\}",
                     Pattern.MULTILINE
             );
+
             Matcher classDefMatcher = classPattern.matcher(code);
             while (classDefMatcher.find()) {
                 String classDefinition = classDefMatcher.group();
-
                 String formattedClass = classDefinition.replaceAll(
                         "(\\b(?:" + className + "|int|string|double|float|void|bool|\\w+)\\s+\\w+\\s*\\([^)]*\\)\\s*\\{)[\\s\\S]*?(\\})",
                         "$1\n    // Logic cleared\n$2"
@@ -2433,11 +2170,9 @@ public class CustomIDE extends Application {
             );
             formattedCode.append(formattedFunction).append("\n\n");
         }
-        // Replace with actual formatted code
         codeArea.replaceText(String.valueOf(formattedCode));
         outputArea.setText("Code formatted successfully!");
     }
-
 
     private void appDocumentation() {
         // Create a TextArea for documentation
@@ -2459,23 +2194,19 @@ public class CustomIDE extends Application {
                         "Version: 1.0\n" +
                         "License: MIST"
         );
-        docTextArea.setEditable(false); // Make it read-only
-        docTextArea.setWrapText(true); // Enable text wrapping
-        docTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 18px;"); // Monospace font for better readability
+        docTextArea.setEditable(false);
+        docTextArea.setWrapText(true);
+        docTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 18px;");
 
-        // Create a ScrollPane to handle overflow
         ScrollPane scrollPane = new ScrollPane(docTextArea);
-        scrollPane.setFitToWidth(true); // Fit the width of the TextArea
-        scrollPane.setPrefSize(600, 400); // Set preferred size for the dialog
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefSize(600, 400);
 
-        // Create an Alert dialog for documentation
         Alert docAlert = new Alert(Alert.AlertType.INFORMATION);
         docAlert.setTitle("Application Documentation");
         docAlert.setHeaderText("Enhanced IDE Documentation");
-        docAlert.getDialogPane().setContent(scrollPane); // Add the ScrollPane to the dialog
-        docAlert.getDialogPane().setPrefSize(620, 420); // Set preferred size for the dialog pane
-
-        // Show the dialog and wait for user interaction
+        docAlert.getDialogPane().setContent(scrollPane);
+        docAlert.getDialogPane().setPrefSize(620, 420);
         docAlert.showAndWait();
     }
 
@@ -2517,7 +2248,6 @@ public class CustomIDE extends Application {
                 "sort|find|binary_search|count|accumulate|reverse|shuffle|lower_bound|upper_bound" +
                 ")\\b";
 
-        // Combined pattern including the new inbuilt value pattern
         Pattern pattern = Pattern.compile(
                 "(?<KEYWORD>" + keywordPattern + ")"
                         + "|(?<INBUILDVALUE>" + inbuildValueTypePattern + ")"
@@ -2533,9 +2263,7 @@ public class CustomIDE extends Application {
                         + "|(?<BUILTIN>" + builtinPattern + ")"
         );
 
-
         Matcher matcher = pattern.matcher(text);
-
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
         int lastMatchEnd = 0;
 
@@ -2574,11 +2302,9 @@ public class CustomIDE extends Application {
         }
 
         spansBuilder.add(Collections.emptyList(), text.length() - lastMatchEnd);
-
         StyleSpans<Collection<String>> styleSpans = spansBuilder.create();
         codeArea.setStyleSpans(0, styleSpans);
     }
-
 
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -2587,7 +2313,6 @@ public class CustomIDE extends Application {
         alert.setContentText(message);
         alert.showAndWait();
     }
-
 
     public static void main(String[] args) {
         launch(args);
