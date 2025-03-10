@@ -437,7 +437,11 @@ public class Custom_IDE extends Application {
             if (variableBoxes.containsKey(varName)) {
                 // Update existing variable box
                 Text varText = variableTexts.get(varName);
-                varText.setText(varName + " = " + value);
+                if (value instanceof Double || value instanceof Float) {
+                    varText.setText(varName + " = " + String.format("%.2f", value));
+                } else {
+                    varText.setText(varName + " = " + value);
+                }
             } else {
                 // Calculate position for new variable box
                 double startX = 10; // Start X position
@@ -461,7 +465,7 @@ public class Custom_IDE extends Application {
                     visualizationPane.setPrefWidth(requiredWidth); // Expand pane width
                 }
 
-                Text varText = new Text(startX + 10, startY + 20, varName + " = " + value);
+                Text varText = new Text(startX + 10, startY + 20, varName + " = " + (value instanceof Double || value instanceof Float ? String.format("%.2f", value) : value));
                 varText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
 
@@ -711,6 +715,7 @@ public class Custom_IDE extends Application {
             handleLogicalAndOperator(currentLine);
         }
     }
+
 
     private void handleConditionalStatement(String currentLine) {
         System.out.println("Handling conditional statement: " + currentLine); // Debug statement
@@ -1409,7 +1414,7 @@ public class Custom_IDE extends Application {
         codeArea.setParagraphGraphicFactory(paraIdx -> {
             HBox hbox = new HBox();
             hbox.setSpacing(5);
-            hbox.setStyle("-fx-background-color: #D3D3D3; -fx-padding: 2px;"); // Gray background
+            hbox.setStyle("-fx-background-color: #cdf7e9; -fx-padding: 2px;"); // Gray background
 
             // Red arrow indicator
             Label arrow = new Label("➤"); // Thicker arrow
@@ -1656,12 +1661,12 @@ public class Custom_IDE extends Application {
             line = line.trim();
 
             // Count variables
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*(=\\s*[^;]+)?;")) {
                 variableCount++;
             }
 
             // Count array sizes
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String sizeStr = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\].*", "$1");
                 if (sizeStr.matches("\\d+")) {
                     arraySize += Integer.parseInt(sizeStr);
@@ -1671,7 +1676,7 @@ public class Custom_IDE extends Application {
             }
 
             // Count matrix sizes
-            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*;")) {
+            if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
                 if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
                     matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
@@ -1681,22 +1686,22 @@ public class Custom_IDE extends Application {
             }
 
             // Check for 2D vectors
-            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*;")) {
+            if (line.matches("vector\\s*<\\s*vector\\s*<.*>\\s*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 has2DVector = true;
             }
 
             // Check for 1D vectors
-            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("vector\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasVector = true;
             }
 
-            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasQueue = true;
             }
-            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("stack\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasStack = true;
             }
-            if (line.matches("list\\s*<.*>\\s*\\w+\\s*;")) {
+            if (line.matches("list\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasLinkedList = true;
             }
 
@@ -2261,6 +2266,7 @@ public class Custom_IDE extends Application {
                 + "- Code editing with syntax highlighting\n"
                 + "- Run and debug C++ code\n"
                 + "- Input and output visualization\n"
+                + "-Tools (Visulization, Code Template, Anylize Code, Time & Space Complexity, Clear Code)\n"
                 + "- File operations (Open, Save, New)\n\n"
                 + "Developed by: Taz , Jamil , Rihin");
         detailsAlert.showAndWait();
@@ -2433,16 +2439,11 @@ public class Custom_IDE extends Application {
                         "3. Run Code: Compile and execute C++ code with support for input/output.\n" +
                         "4. Debug Code: Debug your code using the integrated GDB support.\n" +
                         "5. Analyze Code: Analyze your code for metrics such as lines, words, and characters.\n" +
-                        "6. Format Code: Automatically format your code for readability.\n" +
-                        "7. Documentation: View app features and functionality.\n\n" +
-                        "Keyboard Shortcuts:\n" +
-                        "- Ctrl + S: Save the current file\n" +
-                        "- Ctrl + O: Open a file\n" +
-                        "- Ctrl + N: Create a new file\n" +
-                        "- Ctrl + R: Run the code\n" +
-                        "- Ctrl + D: Debug the code\n" +
-                        "- Ctrl + Z: Undo\n" +
-                        "- Ctrl + Y: Redo\n\n" +
+                        "6. Time Complexity: Analyze the time complexity of your code.\n" +
+                        "7. Space Complexity: Analyze the space complexity of your code.\n" +
+                        "8. Visualize Data: Visualize your data structures and algorithms.\n" +
+                        "9. Format Code: Automatically format your code for readability.\n" +
+                        "10. Documentation: View app features and functionality.\n\n" +
                         "Developed by: Taz, Jamil, Rihin\n" +
                         "Version: 1.0\n" +
                         "License: MIST"
