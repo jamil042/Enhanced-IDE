@@ -49,7 +49,7 @@ import javafx.scene.control.ButtonType;
 import java.util.Optional;
 import javafx.scene.control.TextArea;
 
-public class Main extends Application {
+public class Custom_IDE extends Application {
 
     private CodeArea codeArea;
     private TextArea outputArea;
@@ -60,9 +60,9 @@ public class Main extends Application {
     private List<String> codeLines = new ArrayList<>();
     private Pane visualizationPane;
     private Label currentLineLabel;
-    private SplitPane mainSplitPane; // Only declare once
+    private SplitPane mainSplitPane;
     private boolean isVisualizationVisible = false;
-    private VBox visualizationWorkarea; // Only declare once
+    private VBox visualizationWorkarea;
     private Map<String, Object> variables = new HashMap<>();
     private Map<String, Rectangle> variableBoxes = new HashMap<>();
     private Map<String, Text> variableTexts = new HashMap<>();
@@ -1429,7 +1429,6 @@ public class Main extends Application {
                 hasRecursion = true;
             }
 
-            // Check for built-in functions and their complexities
             if (line.contains("sort(")) {
                 complexities.add("O(n log n)");
             } else if (line.contains("binary_search(")) {
@@ -1439,7 +1438,28 @@ public class Main extends Application {
             }
         }
 
-        if (maxNestedLoops == 0 && !hasRecursion) {
+        if (code.contains("mergeSort") || code.contains("quickSort")||code.contains("MergeSort") || code.contains("QuickSort")) {
+            complexities.add("O(n log n)");
+        } else if (code.contains("bubbleSort") || code.contains("selectionSort") || code.contains("insertionSort")) {
+            complexities.add("O(n²)");
+        } else if (code.contains("binarySearch")||code.contains("BinarySearch")||code.contains("binary_search")) {
+            complexities.add("O(log n)");
+        } else if (code.contains("fibonacci")) {
+            complexities.add("O(2ⁿ)");
+        } else if (code.contains("dijkstra")||code.contains("Dijkstra")) {
+            complexities.add("O(V²) or O(E + V log V)");
+        } else if (code.contains("bellmanFord")||code.contains("BellmanFord")) {
+            complexities.add("O(VE)");
+        } else if (code.contains("prims")||code.contains("Prims")) {
+            complexities.add("O(V²) or O(E + V log V)");
+        } else if (code.contains("kruskal")||code.contains("Kruskal")) {
+            complexities.add("O(E log E)");
+        } else if (code.contains("bfs")||code.contains("BFS")||code.contains("breadthFirstSearch")) {
+            complexities.add("O(V + E)");
+        } else if (code.contains("dfs")||code.contains("DFS")||code.contains("depthFirstSearch")) {
+            complexities.add("O(V + E)");
+        }
+        else if (maxNestedLoops == 0 && !hasRecursion) {
             complexities.add("O(1)");
         } else if (maxNestedLoops == 1 && !hasRecursion) {
             if (hasLogarithmicLoop) {
@@ -1457,13 +1477,12 @@ public class Main extends Application {
             complexities.add("O(n log n)");
         } else if (hasRecursion) {
             complexities.add("O(2ⁿ)");
-        } else {
+        }  else {
             complexities.add("O(n^" + maxNestedLoops + ")");
         }
 
         return complexities.stream().max(String::compareTo).orElse("O(1)");
     }
-
 
     private void calculateSpaceComplexity() {
         String code = codeArea.getText();
@@ -1500,12 +1519,13 @@ public class Main extends Application {
                     arraySize += 1;
                 }
             }
+
             if (line.matches("(vector|int|double|float|char|string|bool|long|short|auto)\\s+\\w+\\s*\\[\\s*\\w+\\s*\\]\\s*\\[\\s*\\w+\\s*\\]\\s*(=\\s*\\{[^;]*\\})?;")) {
                 String[] sizes = line.replaceAll(".*\\[\\s*(\\w+)\\s*\\]\\s*\\[\\s*(\\w+)\\s*\\].*", "$1 $2").split(" ");
                 if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
                     matrixSize += Integer.parseInt(sizes[0]) * Integer.parseInt(sizes[1]);
                 } else {
-                    matrixSize += 1;
+                    matrixSize += 1; // Assume dynamic size
                 }
             }
 
@@ -1513,11 +1533,40 @@ public class Main extends Application {
                 has2DVector = true;
             }
 
+            if (line.matches("vector\\s*<\\s*\\w+\\s*>\\s*\\w+\\s*\\(\\s*\\w+\\s*\\);")) {
+                String sizeStr = line.replaceAll(".*\\(\\s*(\\w+)\\s*\\).*", "$1");
+                if (sizeStr.matches("\\d+")) {
+                    arraySize += Integer.parseInt(sizeStr);
+                } else {
+                    arraySize += 1;
+                }
+            }
+
+            if (line.matches("vector\\s*<\\s*\\w+\\s*>\\s*\\w+\\s*\\(\\s*\\w+\\s*\\+\\s*\\d+\\s*\\);")) {
+                String sizeStr = line.replaceAll(".*\\(\\s*(\\w+)\\s*\\+\\s*(\\d+)\\s*\\).*", "$1 $2");
+                String[] sizes = sizeStr.split(" ");
+                if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
+                    arraySize += Integer.parseInt(sizes[0]) + Integer.parseInt(sizes[1]);
+                } else {
+                    arraySize += 1;
+                }
+            }
+
+            if (line.matches("vector\\s*<\\s*\\w+\\s*>\\s*\\w+\\s*\\(\\s*\\w+\\s*\\+\\s*\\d+\\s*\\)\\s*=\\s*[^;]+;")) {
+                String sizeStr = line.replaceAll(".*\\(\\s*(\\w+)\\s*\\+\\s*(\\d+)\\s*\\).*", "$1 $2");
+                String[] sizes = sizeStr.split(" ");
+                if (sizes[0].matches("\\d+") && sizes[1].matches("\\d+")) {
+                    arraySize += Integer.parseInt(sizes[0]) + Integer.parseInt(sizes[1]);
+                } else {
+                    arraySize += 1;
+                }
+            }
+
             if (line.matches("vector\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasVector = true;
             }
 
-            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
+            if (line.matches("queue\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")||line.matches("priority_queue\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
                 hasQueue = true;
             }
             if (line.matches("stack\\s*<.*>\\s*\\w+\\s*(=\\s*\\{[^;]*\\})?;")) {
