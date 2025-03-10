@@ -37,7 +37,7 @@
 }
 
 .light-mode .symbol.hash {
-    -fx-fill: #333333; /* Adjusted color for # symbol */
+    -fx-fill: #333333;
 }
 
 .light-mode .builtin {
@@ -107,7 +107,7 @@
 .dark-mode .function {
     -fx-fill: #dcdcaa;
 }
-/* Light Mode Styling */
+
 .light-mode .stl-function {
     -fx-fill: #dcdcaa;
     -fx-font-weight: bold;
@@ -118,7 +118,6 @@
     -fx-font-weight: bold;
 }
 
-/* Dark Mode Styling */
 .dark-mode .stl-function {
     -fx-fill: #dcdcaa;
     -fx-font-weight: bold;
