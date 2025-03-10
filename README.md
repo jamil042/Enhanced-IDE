@@ -68,6 +68,7 @@ Once everything is set up, run the CustomIDE.java file to start the Custom IDE.
 - Tools
 ![Image](https://github.com/user-attachments/assets/8586314d-a508-4ea0-9300-c4ee8a2cabc4)
 
+
 - Code Visualization
 ![Image](https://github.com/user-attachments/assets/e2564b44-6b4e-4cb3-8e55-de44a08ab38e)
 
